@@ -11,7 +11,7 @@ description: >
 
 # MORSE · Sistema de Gestión de Comunicaciones de Obra
 
-MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones de un proyecto de construcción en una estructura de carpetas estándar.
+MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones de un proyecto de construcción en una estructura de carpetas estándar, con un archivo excel de seguimiento.
 
 **Estructura de carpetas del proyecto:**
 - `COMUNICACIONES_REGISTRO.xlsx` — base de datos de todas las comunicaciones
