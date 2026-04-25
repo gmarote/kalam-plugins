@@ -1,12 +1,10 @@
 ---
-name: morse
+name: registro
 description: >
-  Gestiona el archivo y seguimiento de comunicaciones de obra en proyectos de
-  construcción. Úsala para registrar emails, actas, WhatsApps o documentos
-  recibidos o enviados; consultar el estado de comunicaciones abiertas; o
-  redactar respuestas. El usuario comparte cualquier comunicación de obra,
-  menciona COMUNICACIONES.xlsx, o pregunta por el estado de un tema o hilo
-  del proyecto.
+  Registra y archiva comunicaciones de obra: emails, actas, WhatsApps o
+  documentos recibidos o enviados. Úsala cuando el usuario comparta una
+  comunicación para archivar, quiera redactar una respuesta, o necesite
+  añadir un nuevo registro al proyecto.
 ---
 
 # MORSE · Sistema de Gestión de Comunicaciones de Obra
