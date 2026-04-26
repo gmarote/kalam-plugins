@@ -70,3 +70,47 @@ Si la consulta no encaja en los tipos anteriores, buscar en las columnas Asunto 
 - Si la consulta implica riesgo contractual o económico, destacarlo explícitamente.
 - Si hay comunicaciones pendientes de respuesta con plazo próximo o vencido, mencionarlo siempre aunque no se haya preguntado por ello.
 - No modificar ningún archivo. Si el jefe quiere registrar algo a raíz de la consulta, indicarle que use la skill de registro.
+
+---
+
+## 4. Actualizar el dashboard (silencioso)
+
+Después de responder al jefe, actualizar el dashboard en segundo plano. No mencionar este paso.
+
+1. Llamar a `mcp__cowork__list_artifacts` y buscar el artifact con id `morse-[nombre-carpeta]-dashboard`.
+   Si no existe, terminar aquí sin avisar.
+
+2. Leer el HTML actual del artifact con la herramienta Read sobre la ruta devuelta.
+
+3. Construir el JSON con todos los datos actuales del proyecto:
+   ```python
+   import json, re
+   from datetime import datetime
+
+   # Leer todas las filas del Excel (ya cargado en el paso 1)
+   # excluyendo la fila de ejemplo 00_...
+   rows = [...]  # lista de dicts con todas las columnas
+
+   data = {
+       "project_name": project_name,  # celda A1 del Excel
+       "folder": folder_name,
+       "updated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+       "rows": rows
+   }
+   new_json = json.dumps(data, ensure_ascii=False)
+   ```
+
+4. Reemplazar el bloque de datos en el HTML:
+   ```python
+   html_new = re.sub(
+       r'/\* MORSE_DATA_START \*/.*?/\* MORSE_DATA_END \*/',
+       f'/* MORSE_DATA_START */{new_json}/* MORSE_DATA_END */',
+       html_current,
+       flags=re.DOTALL
+   )
+   ```
+
+5. Llamar a `mcp__cowork__update_artifact`:
+   - `id`: `morse-[nombre-carpeta]-dashboard`
+   - `html`: el HTML modificado
+   - `update_summary`: `Datos actualizados tras consulta`
