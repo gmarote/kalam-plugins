@@ -162,23 +162,42 @@ Crear el artifact de dashboard para que el jefe pueda consultar el estado del pr
 
 **Pasos:**
 
-1. **Obtener el nombre de la carpeta del proyecto.** Es el último segmento de la ruta en la que se ha creado `COMUNICACIONES.xlsx`. Por ejemplo, si la ruta en bash es `/sessions/xyz/mnt/kalam/COMUNICACIONES.xlsx`, el nombre de carpeta es `kalam`.
+1. **Obtener el nombre de la carpeta del proyecto.** Es el último segmento de la ruta donde se ha creado `COMUNICACIONES.xlsx`. Ejemplo: si la ruta es `/sessions/xyz/mnt/kalam/COMUNICACIONES.xlsx`, el nombre de carpeta es `kalam`.
 
-2. **Leer el archivo de plantilla del dashboard:**
+2. **Leer la plantilla del dashboard:**
    Usar la herramienta Read sobre `references/dashboard.html` (en la misma carpeta que este SKILL.md).
 
-3. **Inyectar el nombre de carpeta:**
-   Reemplazar la cadena literal `{{PROJECT_FOLDER}}` en el HTML leído por el nombre de carpeta obtenido en el paso 1.
+3. **Construir el JSON de datos** con Python:
+   ```python
+   import json
+   from datetime import datetime
 
-4. **Crear el artifact:**
-   Llamar a `mcp__cowork__create_artifact` con:
-   - `id`: `morse-[nombre-carpeta]-dashboard` (todo minúsculas, sin espacios, con guiones)
-     Ejemplo: `morse-kalam-dashboard`
-   - `html`: el contenido HTML modificado del paso 3
-   - `mcp_tools`: `["mcp__workspace__bash"]`
-   - `description`: `Dashboard de comunicaciones del proyecto [Nombre del proyecto]. Lee COMUNICACIONES.xlsx en tiempo real.`
+   data = {
+       "project_name": project_name,  # nombre recogido en el formulario
+       "folder": folder_name,
+       "updated_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+       "rows": []
+   }
+   new_json = json.dumps(data, ensure_ascii=False)
+   ```
 
-El artifact quedará disponible en el sidebar de Cowork. El jefe puede recargarlo en cualquier momento con el botón "Reload" del propio sidebar.
+4. **Inyectar los datos en el HTML** reemplazando el bloque marcado:
+   ```python
+   import re
+   html_final = re.sub(
+       r'/\* MORSE_DATA_START \*/.*?/\* MORSE_DATA_END \*/',
+       f'/* MORSE_DATA_START */{new_json}/* MORSE_DATA_END */',
+       html_template,
+       flags=re.DOTALL
+   )
+   ```
+
+5. **Crear el artifact** con `mcp__cowork__create_artifact`:
+   - `id`: `morse-[nombre-carpeta]-dashboard` (minúsculas, guiones). Ej: `morse-kalam-dashboard`
+   - `html`: el HTML del paso 4
+   - `description`: `Dashboard de comunicaciones — [Nombre del proyecto]`
+
+El artifact quedará en el sidebar de Cowork. Se actualiza automáticamente cada vez que el jefe usa las skills `registro` o `consulta`.
 
 ---
 
