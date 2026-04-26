@@ -1,6 +1,6 @@
 {
   "name": "morse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sistema de gestión de comunicaciones de obra. Centraliza el registro, archivo y seguimiento de todas las comunicaciones de un proyecto de construcción.",
   "author": {
     "name": "Gerardo Marote"
