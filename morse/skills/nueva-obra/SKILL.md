@@ -21,7 +21,7 @@ Antes de nada, usar la herramienta `mcp__visualize__show_widget` para mostrar el
 
 ```html
 <div style="text-align:center; padding: 16px 0 8px 0;">
-  <img src="https://raw.githubusercontent.com/gmarote/morse-plugins/main/morse/Morse.jpg"
+  <img src="https://cdn.jsdelivr.net/gh/gmarote/morse-plugins@main/morse/Morse.jpg"
        alt="Morse" style="max-width: 320px; width: 100%;" />
 </div>
 ```
