@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 20px 20px 32px;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 20px;
+  }
+  .project-label { font-size: 12px; color: #64748b; margin: 0 0 2px; }
+  .project-title { font-size: 20px; font-weight: 500; margin: 0; color: #0f172a; }
+  .updated-at { font-size: 12px; color: #94a3b8; white-space: nowrap; padding-left: 16px; }
+
+  .alerts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+
+  .alert {
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .alert.vencido  { background: #fee2e2; }
+  .alert.inmediata { background: #fef3c7; }
+
+  .alert-label {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    min-width: 105px;
+    padding-top: 1px;
+  }
+  .alert.vencido  .alert-label { color: #b91c1c; }
+  .alert.inmediata .alert-label { color: #92400e; }
+
+  .alert-text { font-size: 13px; line-height: 1.4; }
+  .alert.vencido  .alert-text { color: #7f1d1d; }
+  .alert.inmediata .alert-text { color: #78350f; }
+
+  .no-alerts {
+    background: #f0fdf4;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #15803d;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-label { font-size: 12px; color: #64748b; margin: 0 0 4px; }
+  .stat-number { font-size: 26px; font-weight: 500; margin: 0; line-height: 1.1; }
+  .stat-number.danger  { color: #dc2626; }
+  .stat-number.warning { color: #d97706; }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    margin: 0 0 10px;
+  }
+
+  .themes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .theme-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 0.5px solid #e2e8f0;
+    padding: 16px 20px;
+  }
+  .theme-card.urgent { border-color: #fca5a5; }
+
+  .theme-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .theme-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    line-height: 1.3;
+  }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge.pr { background: #fee2e2; color: #b91c1c; }
+  .badge.pc { background: #fef3c7; color: #92400e; }
+
+  .theme-summary {
+    font-size: 13px;
+    color: #475569;
+    margin: 0 0 8px;
+    line-height: 1.45;
+  }
+  .theme-meta { font-size: 11px; color: #94a3b8; }
+
+  .empty-themes {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
+    font-size: 13px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 0.5px solid #e2e8f0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <p class="project-label" id="projectLabel"></p>
+    <p class="project-title">Alertas del proyecto</p>
+  </div>
+  <span class="updated-at" id="updatedAt"></span>
+</div>
+
+<div id="alertsSection"></div>
+
+<div class="stats">
+  <div class="stat-card">
+    <p class="stat-label">Pendiente respuesta</p>
+    <p class="stat-number danger" id="cnt-pr">0</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-label">Pendiente cliente</p>
+    <p class="stat-number warning" id="cnt-pc">0</p>
+  </div>
+</div>
+
+<p class="section-label" id="themesLabel"></p>
+<div class="themes" id="themesGrid"></div>
+
+<script>
+const MORSE_DATA = /* MORSE_DATA_START */{"project_name":"","folder":"","updated_at":"","alerts":[],"pendiente_respuesta":0,"pendiente_cliente":0,"themes":[]}/* MORSE_DATA_END */;
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+(function init() {
+  const d = MORSE_DATA;
+
+  document.getElementById('projectLabel').textContent = d.project_name || d.folder || '—';
+  document.getElementById('updatedAt').textContent = d.updated_at ? 'Datos: ' + d.updated_at : '';
+  document.getElementById('cnt-pr').textContent = d.pendiente_respuesta || 0;
+  document.getElementById('cnt-pc').textContent = d.pendiente_cliente || 0;
+
+  const alertsEl = document.getElementById('alertsSection');
+  if (d.alerts && d.alerts.length > 0) {
+    alertsEl.innerHTML = '<div class="alerts">' +
+      d.alerts.map(a => `
+        <div class="alert ${esc(a.type)}">
+          <span class="alert-label">${esc(a.label)}</span>
+          <span class="alert-text">${esc(a.text)}</span>
+        </div>`).join('') +
+      '</div>';
+  } else {
+    alertsEl.innerHTML = '<div class="no-alerts">Sin alertas activas — todo dentro de plazo.</div>';
+  }
+
+  const themes = d.themes || [];
+  const label = document.getElementById('themesLabel');
+  const grid  = document.getElementById('themesGrid');
+
+  if (themes.length === 0) {
+    label.style.display = 'none';
+    grid.innerHTML = '<div class="empty-themes">Sin hilos pendientes.</div>';
+    return;
+  }
+
+  label.textContent = 'Hilos pendientes · ' + themes.length;
+  grid.innerHTML = themes.map(t => {
+    const isPR = t.status === 'Pendiente respuesta';
+    return `
+      <div class="theme-card${t.urgent ? ' urgent' : ''}">
+        <div class="theme-header">
+          <span class="theme-name">${esc(t.name)}</span>
+          <span class="badge ${isPR ? 'pr' : 'pc'}">${isPR ? 'Pend. respuesta' : 'Pend. cliente'}</span>
+        </div>
+        <p class="theme-summary">${esc(t.summary)}</p>
+        <p class="theme-meta">${esc(t.count)} comunicación${t.count !== 1 ? 'es' : ''} · último: ${esc(t.last_actor)} · ${esc(t.last_date)}</p>
+      </div>`;
+  }).join('');
+})();
+</script>
+</body>
+</html>
