@@ -12,6 +12,24 @@ Construye un relato claro del historial de un tema y termina con una valoración
 
 ---
 
+## 0. Bienvenida
+
+Antes de nada, usar la herramienta `mcp__visualize__show_widget` para mostrar el logo de Morse con este HTML:
+
+```html
+<div style="text-align:center; padding: 16px 0 8px 0;">
+  <img src="https://cdn.jsdelivr.net/gh/gmarote/assets@main/logos/Morse.jpg"
+       alt="Morse" style="max-width: 320px; width: 100%;" />
+</div>
+```
+
+- `title`: `morse_logo`
+- `loading_messages`: `["Iniciando Morse..."]`
+
+Mostrar el logo y continuar inmediatamente sin esperar respuesta del jefe.
+
+---
+
 ## 1. Obtener el tema
 
 Si el usuario no ha especificado un tema, lista los temas únicos presentes en `COMUNICACIONES.xlsx` y pregunta cuál quiere revisar. Espera la respuesta antes de continuar.
