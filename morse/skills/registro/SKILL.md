@@ -86,8 +86,9 @@ Si algún adjunto es un documento formal con entidad propia (acta firmada, burof
 
 **Asignar el Tema**
 Usando el contexto construido en el arranque, contrastar la nueva comunicación con los temas existentes:
-- Si encaja en uno ya abierto, asignarlo y decirlo en voz alta.
-- Si no encaja, proponer un tema nuevo y justificarlo brevemente.
+- Si encaja claramente en un único tema ya abierto, asignarlo e indicar al jefe el motivo de la asignación.
+- Si toca dos o más temas existentes (o abre varios a la vez), asignar **Tema General** en lugar de forzar uno solo, e indicar al jefe por qué no se ha forzado un tema único.
+- Si no encaja en ningún tema existente, proponer un tema nuevo, justificarlo brevemente e indicarlo al jefe.
 
 El jefe puede corregir el tema directamente en el Excel.
 
@@ -98,6 +99,9 @@ El jefe puede corregir el tema directamente en el Excel.
 ---
 
 ## 4. Acciones tras registrar
+
+**Regla de fechas límite**
+Al evaluar urgencias y plazos, calcular siempre la fecha límite sumando el plazo a la **fecha del documento** (no a la fecha de hoy). Mostrarla siempre en formato de fecha absoluta: `"vence el DD/MM/AAAA"`. Nunca usar referencias relativas como "hoy" o "mañana". La comparación con `date.today()` solo sirve para ordenar por urgencia o para marcar el plazo como ya vencido.
 
 **Contextualizar el hilo**
 - Hilo existente: resumir el estado acumulado — cuántas comunicaciones, qué está pendiente, si hay riesgo contractual o exposición económica.

@@ -48,7 +48,7 @@ Abre `COMUNICACIONES.xlsx` y carga la hoja **Comunicaciones** completa. No es ne
 Resumen del proyecto: total de comunicaciones, cuántas están pendientes de respuesta, cuántas pendientes de cliente, cuántas cerradas. Mencionar los hilos con más actividad reciente o con riesgo contractual o económico activo.
 
 **Por tema**
-Todas las comunicaciones de un tema: cronología, estado actual, qué está pendiente y quién debe actuar.
+Todas las comunicaciones de un tema: cronología, estado actual, qué está pendiente y quién debe actuar. Incluir siempre también los registros con `Tema` = **"Tema General"**, marcándolos con el prefijo `[Transversal]`. Son comunicaciones que afectan a varios temas y no deben perderse al consultar un hilo concreto.
 
 **Por remitente o interlocutor**
 Todas las comunicaciones de o hacia una persona o entidad concreta.

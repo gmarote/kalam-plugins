@@ -20,7 +20,9 @@ Revisa las comunicaciones pendientes y presenta un resumen claro de los hilos ab
 
 ## 2. Agrupar por tema
 
-Para cada valor de `Tema` que aparezca entre las filas filtradas:
+Separar primero los registros con `Tema` = **"Tema General"** del resto. Estos son comunicaciones transversales que afectan a varios temas y se presentan en su propia sección.
+
+Para cada valor de `Tema` (excluido "Tema General") que aparezca entre las filas filtradas:
 
 1. Reúne todas sus filas pendientes.
 2. Redacta una frase que describa el estado actual del hilo: qué se está esperando, quién debe actuar y, si hay una fecha relevante, cuándo.
@@ -50,7 +52,13 @@ Hay N comunicaciones abiertas: X pendientes de respuesta por nuestra parte y Y e
 
 ---
 
+**Pendientes transversales** *(afectan a varios temas)*
+
+- descripción del estado de la comunicación transversal.
+
+---
+
 [Párrafo de recomendación: qué acciones concretas se deben priorizar, en qué orden y por qué.]
 ```
 
-Si no hay hilos en alguna de las dos categorías, indica "Sin comunicaciones pendientes en esta categoría." en su lugar.
+Si no hay hilos en alguna de las categorías, indica "Sin comunicaciones pendientes en esta categoría." en su lugar.
