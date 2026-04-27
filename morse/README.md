@@ -5,9 +5,10 @@ MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones 
 ## Skills disponibles
 
 - **nueva-obra** — inicializa un proyecto desde cero: crea las carpetas, genera el `RESUMEN.txt` mediante una conversación guiada y monta el `COMUNICACIONES.xlsx` a partir de la plantilla canónica
-- **registro** — archiva comunicaciones entrantes y salientes, redacta respuestas y actualiza el Excel
-- **consulta** — consulta el estado del proyecto, busca comunicaciones y resume hilos sin modificar nada
-- **alertas** — genera el panel de alertas del proyecto en el sidebar de Cowork: plazos vencidos, acciones urgentes y todos los hilos pendientes agrupados por tema
+- **registro** — archiva comunicaciones entrantes y salientes, asigna el tema (o **Tema General** si la comunicación afecta a varios hilos a la vez), redacta respuestas y actualiza el Excel
+- **consulta** — consulta el estado del proyecto, busca comunicaciones y resume hilos sin modificar nada; al filtrar por tema siempre incluye las comunicaciones transversales (Tema General)
+- **resumen** — construye la cronología narrativa completa de un tema, detecta riesgos contractuales e inactividad, y propone la siguiente acción concreta; incluye las comunicaciones transversales del hilo
+- **alertas** — muestra todos los hilos pendientes agrupados por tema: pendientes de responder, pendientes por parte del cliente y pendientes transversales (comunicaciones de Tema General que afectan a varios hilos)
 
 ## Estructura de proyecto
 
@@ -37,4 +38,4 @@ Mi Obra/
 2. Apunta Cowork a la carpeta de tu obra
    - **Obra nueva** (carpeta vacía): lanza `nueva-obra` para montar la estructura
    - **Obra ya inicializada**: comparte una comunicación para archivarla, o pregunta por el estado del proyecto
-3. Cuando quieras ver el panel de alertas, lanza `alertas` — el panel queda en el sidebar y puedes recargarlo cuando quieras
+3. Cuando quieras ver qué tienes pendiente, lanza `alertas`
