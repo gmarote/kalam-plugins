@@ -4,10 +4,10 @@ MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones 
 
 ## Skills disponibles
 
-- **nueva-obra** — inicializa un proyecto desde cero: crea las carpetas, genera el `RESUMEN.txt` mediante una conversación guiada y monta el `COMUNICACIONES.xlsx` a partir de la plantilla canónica
-- **registro** — archiva comunicaciones entrantes y salientes, asigna el tema (o **Tema General** si la comunicación afecta a varios hilos a la vez), redacta respuestas y actualiza el Excel
+- **nueva-obra** — inicializa un proyecto desde cero: crea las carpetas, genera el `RESUMEN.txt` mediante una conversación guiada, monta el `COMUNICACIONES.xlsx` a partir de la plantilla canónica y crea el `TEMAS.txt` vacío
+- **registro** — archiva comunicaciones entrantes y salientes; lee `TEMAS.txt` para asignar el tema (o **Tema General** si la comunicación afecta a varios hilos), actualiza `TEMAS.txt` si abre un tema nuevo o aporta un matiz relevante, y al terminar llama automáticamente a `resumen`
+- **resumen** — construye la cronología narrativa completa de un tema, detecta riesgos contractuales e inactividad y propone la siguiente acción; si la acción es redactar una respuesta, la valida con el jefe y luego llama a `registro` para archivarla como comunicación OUT
 - **consulta** — consulta el estado del proyecto, busca comunicaciones y resume hilos sin modificar nada; al filtrar por tema siempre incluye las comunicaciones transversales (Tema General)
-- **resumen** — construye la cronología narrativa completa de un tema, detecta riesgos contractuales e inactividad, y propone la siguiente acción concreta; incluye las comunicaciones transversales del hilo
 - **alertas** — muestra todos los hilos pendientes agrupados por tema: pendientes de responder, pendientes por parte del cliente y pendientes transversales (comunicaciones de Tema General que afectan a varios hilos)
 
 ## Estructura de proyecto
@@ -19,7 +19,8 @@ Mi Obra/
 ├── COMUNICACIONES.xlsx    ← base de datos de comunicaciones
 ├── Comunicaciones/        ← archivos de todas las comunicaciones
 └── Documentacion/
-    └── RESUMEN.txt        ← contexto del proyecto
+    ├── RESUMEN.txt        ← contexto del proyecto
+    └── TEMAS.txt          ← catálogo de temas, gestionado por registro
 ```
 
 ## RESUMEN.txt — qué contiene
