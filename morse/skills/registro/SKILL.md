@@ -18,6 +18,8 @@ MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones 
 
 Todo el contexto específico del proyecto está en `Documentacion/RESUMEN.txt`. Léelo al arrancar y úsalo como referencia para cualquier decisión de fondo. No inventes datos que no estén ahí.
 
+**Regla de comunicación:** trabajar en silencio durante las comprobaciones de inicio, la lectura de archivos y la escritura del Excel. No narrar pasos internos ("leyendo el Excel", "sin lock file", "contexto cargado", etc.). Solo hablar al jefe cuando se necesite su input, cuando haya un error que le afecte, o al presentar el resultado final.
+
 ---
 
 ## 0. Bienvenida
