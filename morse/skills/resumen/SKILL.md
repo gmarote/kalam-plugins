@@ -94,3 +94,6 @@ Ejemplo: "— El 12/03, la DF solicitó documentación técnica del sistema de v
 ```
 
 Incluye solo los bloques de valoración que sean relevantes. Si el hilo está limpio y cerrado sin ningún riesgo, indica simplemente: "Sin acciones pendientes ni riesgos detectados."
+
+**Si la acción propuesta es redactar una respuesta:**
+Redactar el borrador y mostrarlo al jefe para validar o iterar. Una vez aprobado, invocar la skill `registro` para archivar la comunicación OUT. `registro` se encargará de escribir la fila OUT en el Excel y de actualizar el Estado de la comunicación IN relacionada: a **Pendiente cliente** si se espera confirmación o nueva respuesta del otro lado; a **Cerrada** si la respuesta resuelve el asunto sin acción pendiente en ningún lado.

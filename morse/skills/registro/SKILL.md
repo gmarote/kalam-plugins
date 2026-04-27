@@ -46,15 +46,16 @@ Mostrar el logo y continuar inmediatamente sin esperar respuesta del jefe.
 **Paso 1 — Lee `Documentacion/RESUMEN.txt`**
 Contiene el contexto de la obra e instrucciones específicas del jefe. Sin ese archivo, avisa de que falta y no proceses nada.
 
-**Paso 2 — Verifica el lock file del Excel**
+**Paso 2 — Lee `Documentacion/TEMAS.txt`**
+Contiene el catálogo de temas abiertos del proyecto, con sus descripciones y líneas `Incluye:`. Úsalo para asignar el tema de la comunicación nueva. Si el archivo no existe o está vacío (sin bloques de tema), trátalo como catálogo vacío: cualquier comunicación abre un tema nuevo.
+
+**Paso 3 — Verifica el lock file del Excel**
 Comprueba programáticamente si existe `~$COMUNICACIONES.xlsx` en la carpeta. Si existe, intenta abrir el archivo como verificación secundaria (puede ser caché residual):
 - Si el archivo **no se puede abrir** → Excel está abierto. Avisa al jefe y no continúes hasta que el lock desaparezca.
 - Si el archivo **sí se puede abrir** → lock residual, puedes continuar.
 
-**Paso 3 — Lee el Excel**
-Abre `COMUNICACIONES.xlsx` y revisa la hoja **Comunicaciones** para:
-- Saber cuál es el último ID registrado. Si la hoja está vacía (primera comunicación del proyecto), el próximo ID será `01`.
-- Extraer los temas existentes (columna Tema) y repasar los resúmenes (columna Resumen) para construir una imagen del estado actual de la obra: qué hilos están abiertos, qué está pendiente, si hay exposición económica o contractual activa. Este contexto es imprescindible para asignar correctamente el tema de cualquier comunicación nueva. Si no hay registros previos, no hay temas con los que contrastar — proponer un tema nuevo basándose solo en el contenido de la comunicación.
+**Paso 4 — Lee el Excel (solo el último ID)**
+Abre `COMUNICACIONES.xlsx` y lee únicamente `max_row` de la hoja **Comunicaciones** para saber cuál es el último ID registrado. Si la hoja está vacía (primera comunicación del proyecto), el próximo ID será `01`. No leer más datos del Excel en esta fase.
 
 ---
 
@@ -87,12 +88,25 @@ Si algún adjunto es un documento formal con entidad propia (acta firmada, burof
 ## 3. Actualizar el Excel con el nuevo registro
 
 **Asignar el Tema**
-Usando el contexto construido en el arranque, contrastar la nueva comunicación con los temas existentes:
-- Si encaja claramente en un único tema ya abierto, asignarlo e indicar al jefe el motivo de la asignación.
-- Si toca dos o más temas existentes (o abre varios a la vez), asignar **Tema General** en lugar de forzar uno solo, e indicar al jefe por qué no se ha forzado un tema único.
-- Si no encaja en ningún tema existente, proponer un tema nuevo, justificarlo brevemente e indicarlo al jefe.
+Contrastar la comunicación contra los bloques de `Documentacion/TEMAS.txt`:
+- Si encaja claramente en un único tema existente, asignarlo e indicar al jefe el motivo.
+- Si toca dos o más temas existentes, asignar **Tema General** e indicar al jefe por qué.
+- Si no encaja en ninguno, crear un nombre de tema descriptivo.
 
 El jefe puede corregir el tema directamente en el Excel.
+
+**Actualizar `Documentacion/TEMAS.txt`**
+Modificar el archivo solo en estos casos:
+- **Tema nuevo:** añadir al final un bloque con este formato:
+  ```
+  ## [Nombre del tema]
+  [Una o dos frases describiendo de qué trata este tema.]
+  ```
+- **Matiz relevante en tema existente:** si la comunicación aporta un sub-hilo o detalle concreto que ayude a clasificar futuras comunicaciones en ese tema (un plazo específico, un actor nuevo, una variante del asunto), añadir una línea `Incluye:` al bloque correspondiente:
+  ```
+  Incluye: [descripción breve del sub-hilo o detalle]
+  ```
+- **Comunicación rutinaria dentro de un tema ya bien descrito:** no tocar el archivo.
 
 **Campos:** ver `references/campos-excel.md`
 
@@ -100,19 +114,6 @@ El jefe puede corregir el tema directamente en el Excel.
 
 ---
 
-## 4. Acciones tras registrar
+## 4. Llamar a `resumen`
 
-**Regla de fechas límite**
-Al evaluar urgencias y plazos, calcular siempre la fecha límite sumando el plazo a la **fecha del documento** (no a la fecha de hoy). Mostrarla siempre en formato de fecha absoluta: `"vence el DD/MM/AAAA"`. Nunca usar referencias relativas como "hoy" o "mañana". La comparación con `date.today()` solo sirve para ordenar por urgencia o para marcar el plazo como ya vencido.
-
-**Contextualizar el hilo**
-- Hilo existente: resumir el estado acumulado — cuántas comunicaciones, qué está pendiente, si hay riesgo contractual o exposición económica.
-- Hilo nuevo: indicar que se ha abierto un tema nuevo y cuál es el resumen del primer registro.
-
-**Proponer siguiente paso** y esperar confirmación antes de ejecutar:
-- **Redactar respuesta** — si la comunicación registrada o el contexto del hilo requieren respuesta, sugerir la redacción de dicha respuesta, sugerir estilo (Formal / Técnico / Cordial) y esperar aprobación. Una vez aprobado redactar la respuesta y mostrar para validar o iterar. Una vez validada, guardar como `.txt` en `Comunicaciones/` con su ID OUT y actualizar el Estado de la comunicación IN relacionada: a **Pendiente cliente** si se espera confirmación o nueva respuesta del otro lado; a **Cerrada** si la respuesta resuelve el asunto sin acción pendiente en ningún lado.
-- **Revisar documentación** — si la comunicación registrada el contexto del hilo sugieren la revisión de la documentación del contrato, preguntar al jefe de obra si se deben consultar documentos del proyecto como el contrato, planning u otros documentos, existentes en `Documentacion/` o que deban ser aportados por el jefe de obra.
-- **Solo registrar** — si el jefe no necesita acción inmediata.
-- **Otras opciones** — sugerir otras opciones al jefe de obra relacionadas con el contexto de la comunicación registrada o del hilo.
-
-Iterar con el jefe hasta cerrar la acción o dejarla aparcada conscientemente.
+Una vez completado el registro (archivo guardado en `Comunicaciones/`, fila escrita en el Excel, `TEMAS.txt` actualizado si procede), invocar automáticamente la skill `resumen` pasándole el tema asignado. No esperar confirmación del jefe ni proponer pasos intermedios: `resumen` se encarga del análisis del hilo y la propuesta de acción.

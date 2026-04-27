@@ -54,6 +54,14 @@ Crear en la raíz:
 - `Comunicaciones/`
 - `Documentacion/`
 
+Crear también `Documentacion/TEMAS.txt` como archivo vacío con únicamente esta línea de cabecera:
+
+```
+# Temas del proyecto
+```
+
+Este archivo lo irá completando `registro` automáticamente a medida que se registren comunicaciones.
+
 ---
 
 ## 3. Formulario guiado para `RESUMEN.txt`
@@ -161,6 +169,7 @@ Bloques omitidos pueden marcarse como `[pendiente]` o no incluirse, según prefi
 Resumir al jefe lo que se ha creado:
 - Ruta de `COMUNICACIONES.xlsx`
 - Ruta de `Documentacion/RESUMEN.txt`
+- Ruta de `Documentacion/TEMAS.txt`
 - Carpetas `Comunicaciones/` y `Documentacion/`
 
 Indicar que ya puede:
