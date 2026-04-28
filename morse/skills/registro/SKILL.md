@@ -90,7 +90,7 @@ Si algún adjunto es un documento formal con entidad propia (acta firmada, burof
 **Asignar el Tema**
 Contrastar la comunicación contra los bloques de `Documentacion/TEMAS.txt`:
 - Si encaja claramente en un único tema existente, asignarlo e indicar al jefe el motivo.
-- Si toca dos o más temas existentes, asignar **Tema General** e indicar al jefe por qué.
+- Si toca dos o más temas existentes, asignar **General** e indicar al jefe por qué.
 - Si no encaja en ninguno, crear un nombre de tema descriptivo.
 
 El jefe puede corregir el tema directamente en el Excel.

@@ -40,7 +40,7 @@ Si el usuario no ha especificado un tema, lista los temas únicos presentes en `
 
 **Lee `Documentacion/RESUMEN.txt`** para obtener contexto del proyecto: partes, roles, plazos contractuales y condiciones relevantes. Si no existe, continúa sin él.
 
-**Lee `COMUNICACIONES.xlsx`** y filtra todas las filas cuyo campo `Tema` coincida con el solicitado, más todas las filas con `Tema` = **"Tema General"**. Estas últimas se incluyen siempre al analizar cualquier hilo concreto. Ordénalas por `Fecha` de más antigua a más reciente. En la cronología, las filas de Tema General se marcan con `[Transversal]` para distinguirlas visualmente de las del tema específico.
+**Lee `COMUNICACIONES.xlsx`** y filtra todas las filas cuyo campo `Tema` coincida con el solicitado, más todas las filas con `Tema` = **"General"**. Estas últimas se incluyen siempre al analizar cualquier hilo concreto. Ordénalas por `Fecha` de más antigua a más reciente. En la cronología, las filas de General se marcan con `[Transversal]` para distinguirlas visualmente de las del tema específico.
 
 ---
 
@@ -97,3 +97,13 @@ Incluye solo los bloques de valoración que sean relevantes. Si el hilo está li
 
 **Si la acción propuesta es redactar una respuesta:**
 Redactar el borrador y mostrarlo al jefe para validar o iterar. Una vez aprobado, invocar la skill `registro` para archivar la comunicación OUT. `registro` se encargará de escribir la fila OUT en el Excel y de actualizar el Estado de la comunicación IN relacionada: a **Pendiente cliente** si se espera confirmación o nueva respuesta del otro lado; a **Cerrada** si la respuesta resuelve el asunto sin acción pendiente en ningún lado.
+
+---
+
+## 5. Actualizar estado crítico en TEMAS.txt
+
+Tras presentar la valoración, actualizar el bloque del tema en `Documentacion/TEMAS.txt` según el resultado del análisis:
+
+- **Añadir la línea `CRÍTICO`** al bloque si se ha detectado riesgo contractual no resuelto o una contradicción activa que requiere atención aunque no haya comunicación pendiente en este momento. Si ya estaba, no duplicar.
+- **Eliminar la línea `CRÍTICO`** del bloque si el tema está limpio y cerrado sin riesgos, o si se ha propuesto cierre y no hay nada pendiente de confirmar.
+- **No modificar** el flag si la situación es inactividad prolongada sin riesgo contractual, o acción pendiente de respuesta ordinaria — esas situaciones ya quedan recogidas por el estado del Excel.

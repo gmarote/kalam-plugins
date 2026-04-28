@@ -5,10 +5,10 @@ MORSE centraliza el registro, archivo y seguimiento de todas las comunicaciones 
 ## Skills disponibles
 
 - **nueva-obra** — inicializa un proyecto desde cero: crea las carpetas, genera el `RESUMEN.txt` mediante una conversación guiada, monta el `COMUNICACIONES.xlsx` a partir de la plantilla canónica y crea el `TEMAS.txt` vacío
-- **registro** — archiva comunicaciones entrantes y salientes; lee `TEMAS.txt` para asignar el tema (o **Tema General** si la comunicación afecta a varios hilos), actualiza `TEMAS.txt` si abre un tema nuevo o aporta un matiz relevante, y al terminar llama automáticamente a `resumen`
+- **registro** — archiva comunicaciones entrantes y salientes; lee `TEMAS.txt` para asignar el tema (o **General** si la comunicación afecta a varios hilos), actualiza `TEMAS.txt` si abre un tema nuevo o aporta un matiz relevante, y al terminar llama automáticamente a `resumen`
 - **resumen** — análisis en profundidad de un tema: cronología narrativa, detección de riesgos contractuales e inactividad y propuesta de acción; si la acción es redactar una respuesta, la valida con el jefe y llama a `registro` para archivarla como comunicación OUT
 - **consulta** — búsquedas transversales sobre el registro: estado general del proyecto, comunicaciones por remitente, estado, fecha o palabras clave; carga solo las columnas necesarias según el tipo de búsqueda
-- **alertas** — muestra todos los hilos pendientes agrupados por tema: pendientes de responder, pendientes por parte del cliente y pendientes transversales (comunicaciones de Tema General que afectan a varios hilos)
+- **alertas** — muestra todos los hilos pendientes agrupados por tema: pendientes de responder, pendientes por parte del cliente, pendientes transversales (comunicaciones de General que afectan a varios hilos) y temas críticos (marcados `CRÍTICO` en TEMAS.txt aunque no tengan comunicaciones pendientes)
 
 ## Estructura de proyecto
 
