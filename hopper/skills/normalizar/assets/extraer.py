@@ -85,9 +85,12 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
         fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
+        if unit == "0": unit = ""          # "0" fantasma (fórmula) en cabeceras: no es unidad
         qty, price = to_num(g("qty")), to_num(g("price"))
         if not code and not desc and qty is None:
             stats["vacia"] += 1; continue
+        if re.match(r"(?i)^(sub\s*total|total)\b", desc) and qty is None:
+            stats["subtotal"] += 1; continue                  # subtotal/total: se descarta
         if is_letter_chapter(code) and qty is None:           # capítulo solo-letra (E)
             stats["titulo"] += 1; titles = {1: desc}; continue
         if not is_struct_code(code):
@@ -126,6 +129,7 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
         fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
+        if unit == "0": unit = ""          # "0" fantasma (fórmula) en cabeceras: no es unidad
         qty, price = to_num(g("qty")), to_num(g("price"))
         if desc == "DESCRITIVO": continue
         if not code and not desc and qty is None:
