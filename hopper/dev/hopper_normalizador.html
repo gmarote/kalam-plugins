@@ -26,6 +26,14 @@
   .counts{font-size:12px;color:var(--mut);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
   .counts b{color:var(--ink)}
   .excl{opacity:.5}
+  .aviso{border:1px solid #f0d48a;background:#fff8e6;border-radius:8px;padding:9px 12px;margin:8px 0;font-size:13px}
+  .aviso b{color:var(--warn)} .aviso ul{margin:4px 0 0;padding-left:18px}
+  .ok{border:1px solid #aadfb6;background:#eaf7ee;color:var(--ok);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:13px;font-weight:600}
+  details{margin:12px 0;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600}
+  .dtab{width:100%;white-space:normal}
+  .dtab td,.dtab th{font-size:12px;border-right:0}
+  .e-ok{color:var(--ok);font-weight:600} .e-warn{color:var(--warn);font-weight:600} .e-excl{color:var(--mut)}
   .toolbar{display:flex;gap:10px;align-items:center;margin:18px 0;flex-wrap:wrap}
   button.primary{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:9px 16px;font:600 14px inherit;cursor:pointer}
   button.primary:disabled{opacity:.5;cursor:default}
@@ -50,12 +58,13 @@
     <div><b>Suelta aquí</b> el Excel de mediciones (o haz clic). Acepta .xlsx y .xls</div>
   </label>
 
-  <div id="sheets"></div>
-
   <div class="toolbar hide" id="toolbar">
     <button class="primary" id="dl">⬇ Descargar Excel normalizado</button>
     <span class="summary" id="summary"></span>
   </div>
+
+  <div id="avisos"></div>
+  <details id="detalleWrap" class="hide"><summary>Detalle por hoja</summary><div id="detalle"></div></details>
   <div id="preview"></div>
 </main>
 <script>/* xlsx.full.min.js · embebida para uso offline */
@@ -257,6 +266,20 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function nuevoStats(){ return {titulo:0,partida:0,parcial:0,nota:0,subtotal:0,vacia:0}; }
   function esExcluida(nombre){ return /resumo|resumen|^folha\d|^sheet\d|^hoja\d/i.test(nombre.trim()); }
 
+  // ---- autoevaluación: ¿esta hoja es dudosa? (red de seguridad, sin interacción) ----
+  function unidadSospechosa(u){ u=String(u).trim(); return u.length>6 || (u!=="" && /^[\d.,]+$/.test(u)); }
+  function avisosDe(inf, medRows){
+    var a=[];
+    if(inf.headerRow<0) a.push("no se localizó cabecera (usando mapeo por defecto)");
+    else if(inf.headerScore<3) a.push("cabecera de baja confianza: revisa el mapeo de columnas");
+    if(inf.stats.partida===0) a.push("0 partidas — ¿no es hoja de medición, o el mapeo es incorrecto?");
+    var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
+    var ul=Object.keys(us); if(ul.length) a.push("unidades sospechosas: "+ul.slice(0,6).join(", "));
+    var z=medRows.filter(function(r){return r.medicion===0;}).length;
+    if(z>0) a.push(z+" medición(es) a 0");
+    return a;
+  }
+
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // overrides: { hojaNombre: {familia, headerRow, cols, excluir} }  para la UI
   function normalizar(wb, archivo, XLSX, overrides){
@@ -273,12 +296,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var cols = ov.cols||det.cols;
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,excluida:excl,
                   headerScore:det.headerScore,filas:grid.length};
-      if(excl){ info[hoja].stats=nuevoStats(); return; }
-      var stats=nuevoStats(), res;
+      if(excl){ info[hoja].stats=nuevoStats(); info[hoja].avisos=[]; return; }
+      var stats=nuevoStats(), res, medRows=[];
       if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
-      res.forEach(function(r){ if(Array.isArray(r)) notas.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medic.push(r); });
+      res.forEach(function(r){ if(Array.isArray(r)) notas.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else { medic.push(r); medRows.push(r); } });
       info[hoja].stats=stats;
+      info[hoja].avisos=avisosDe(info[hoja], medRows);
     });
     return { mediciones:medic, notas:notas, info:info, CANON:CANON };
   }
@@ -290,21 +314,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
-/* ---- UI del prototipo: orquesta lectura, detección, override de mapeo y salida ---- */
+/* ---- UI del prototipo: 100% automática. Suelta el fichero y sale el Excel.
+   Sin formularios de mapeo. Un panel de AVISOS marca solo las hojas dudosas. ---- */
 (function(){
   var XLSX = window.XLSX, core = window.HopperCore;
-  var wb=null, archivo="", overrides={}, ultimo=null;
+  var archivo="", ultimo=null;
   var $=function(id){return document.getElementById(id);};
-  var COL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  function colLabel(grid, headerRow, j){
-    var lab = headerRow>=0 && grid[headerRow] ? core.txt(grid[headerRow][j]) : "";
-    lab = lab.replace(/\n/g," ").slice(0,22);
-    return COL[j] + (lab?(": "+lab):"");
-  }
-  function gridOf(hoja){ return XLSX.utils.sheet_to_json(wb.Sheets[hoja],{header:1,raw:true,defval:null}); }
-  function ncols(grid){ return grid.reduce(function(m,r){return Math.max(m,r.length);},0); }
 
-  // drag & drop
+  // drag & drop + file input
   var drop=$("drop"), file=$("file");
   ["dragenter","dragover"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add("over");});});
   ["dragleave","drop"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove("over");});});
@@ -312,74 +329,55 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   file.addEventListener("change",function(){ if(file.files[0]) cargar(file.files[0]); });
 
   function cargar(f){
-    archivo=f.name; overrides={};
+    archivo=f.name;
     var rd=new FileReader();
-    rd.onload=function(){ wb=XLSX.read(new Uint8Array(rd.result),{type:"array"}); render(); };
+    rd.onload=function(){
+      var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
+      ultimo=core.normalizar(wb, archivo, XLSX, {});   // automático, sin overrides
+      render(ultimo);
+    };
     rd.readAsArrayBuffer(f);
   }
 
-  function render(){
-    var det = core.normalizar(wb, archivo, XLSX, overrides);
-    ultimo = det;
-    // tarjetas por hoja
-    var html="";
-    wb.SheetNames.forEach(function(hoja){
-      var inf=det.info[hoja], grid=gridOf(hoja), nc=ncols(grid), s=inf.stats;
-      var opts=function(sel){ var o=""; for(var j=0;j<nc;j++) o+='<option value="'+j+'"'+(j===sel?" selected":"")+'>'+colLabel(grid,inf.headerRow,j)+'</option>'; return o; };
-      html+='<div class="card'+(inf.excluida?' excl':'')+'" data-h="'+esc(hoja)+'">'+
-        '<h3><span>'+esc(hoja)+' <span class="muted">('+inf.filas+' filas)</span></span>'+
-        '<span><span class="pill '+inf.familia+'">'+inf.familia+'</span> '+
-        '<label style="font-size:12px;color:var(--mut)"><input type="checkbox" class="ov-excl" '+(inf.excluida?'checked':'')+'> excluir</label></span></h3>'+
-        '<div class="body'+(inf.excluida?' hide':'')+'">'+
-          '<div class="map">'+
-            sel("familia","Familia",'<option value="codigo"'+(inf.familia==="codigo"?" selected":"")+'>código</option><option value="formato"'+(inf.familia==="formato"?" selected":"")+'>formato</option>')+
-            sel("headerRow","Fila cabecera",'<input class="ov-hdr" type="number" value="'+inf.headerRow+'" style="width:64px">',true)+
-            selWrap("code","código",opts(inf.cols.code))+
-            selWrap("desc","descripción",opts(inf.cols.desc))+
-            selWrap("unit","unidad",opts(inf.cols.unit))+
-            selWrap("qty","medición",opts(inf.cols.qty))+
-            selWrap("price","precio",opts(inf.cols.price))+
-          '</div>'+
-          '<div class="counts">partidas <b>'+s.partida+'</b> · parciales <b>'+s.parcial+'</b> · títulos <b>'+s.titulo+'</b> · notas <b>'+s.nota+'</b> · subtotales <b>'+s.subtotal+'</b></div>'+
-          (s.partida===0 && !inf.excluida ? '<div class="note">⚠ 0 partidas: revisa el mapeo o marca «excluir» si no es hoja de medición.</div>':'')+
-        '</div></div>';
-    });
-    $("sheets").innerHTML=html;
-    cablear();
-    pintarSalida(det);
-  }
-  function sel(key,label,inner,raw){ return raw?('<label>'+label+inner+'</label>'):('<label>'+label+'<select class="ov-fam">'+inner+'</select></label>'); }
-  function selWrap(key,label,opts){ return '<label>'+label+'<select class="ov-col" data-k="'+key+'">'+opts+'</select></label>'; }
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 
-  function cablear(){
-    document.querySelectorAll(".card").forEach(function(card){
-      var hoja=card.getAttribute("data-h");
-      function ov(){ return overrides[hoja]=overrides[hoja]||{cols:{}}; }
-      card.querySelector(".ov-excl").addEventListener("change",function(e){ ov().excluir=e.target.checked; render(); });
-      var fam=card.querySelector(".ov-fam"); if(fam) fam.addEventListener("change",function(e){ ov().familia=e.target.value; render(); });
-      var hdr=card.querySelector(".ov-hdr"); if(hdr) hdr.addEventListener("change",function(e){ ov().headerRow=parseInt(e.target.value,10); render(); });
-      card.querySelectorAll(".ov-col").forEach(function(s){
-        s.addEventListener("change",function(e){ var o=ov(); o.cols=o.cols||{}; o.cols[s.getAttribute("data-k")]=parseInt(e.target.value,10); render(); });
-      });
-      // al cambiar cualquier override de mapeo necesitamos también arrastrar headerRow/familia actuales
-      var inf=ultimo.info[hoja];
-      var o=overrides[hoja]; if(o){ if(o.headerRow==null)o.headerRow=inf.headerRow; if(!o.familia)o.familia=inf.familia;
-        o.cols=o.cols||{}; ["code","desc","unit","qty","price"].forEach(function(k){ if(o.cols[k]==null)o.cols[k]=inf.cols[k]; }); }
-    });
-  }
+  function render(det){
+    var m=det.mediciones, hojas=Object.keys(det.info);
+    var usadas=hojas.filter(function(h){return !det.info[h].excluida;});
+    var excl=hojas.filter(function(h){return det.info[h].excluida;});
 
-  function pintarSalida(det){
-    var m=det.mediciones;
     $("toolbar").classList.toggle("hide", m.length===0);
-    var hojasUsadas = Object.keys(det.info).filter(function(h){return !det.info[h].excluida;});
-    $("summary").textContent = m.length+" mediciones · "+det.notas.length+" notas · hojas: "+hojasUsadas.join(", ");
+    $("summary").textContent = m.length+" mediciones · "+det.notas.length+" notas · "+
+      usadas.length+" hojas usadas"+(excl.length?(" · "+excl.length+" excluidas"):"")+" de "+hojas.length;
+
+    // ---- AVISOS (solo hojas dudosas) ----
+    var avisos="";
+    usadas.forEach(function(h){
+      var av=det.info[h].avisos||[];
+      if(av.length) avisos+='<div class="aviso"><b>⚠ '+esc(h)+'</b><ul>'+av.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>';
+    });
+    $("avisos").innerHTML = m.length===0 ? "" :
+      (avisos || '<div class="ok">✓ Sin avisos: detección limpia en todas las hojas usadas.</div>');
+
+    // ---- DETALLE POR HOJA (tabla compacta, escala a muchas pestañas) ----
+    $("detalleWrap").classList.toggle("hide", hojas.length===0);
+    var rows=hojas.map(function(h){
+      var i=det.info[h], s=i.stats;
+      var estado = i.excluida ? '<span class="e-excl">excluida</span>'
+                 : (i.avisos&&i.avisos.length) ? '<span class="e-warn">revisar</span>'
+                 : '<span class="e-ok">ok</span>';
+      return "<tr><td>"+esc(h)+"</td><td>"+(i.excluida?"—":i.familia)+"</td><td>"+estado+"</td>"+
+             "<td class='num'>"+s.partida+"</td><td class='num'>"+s.parcial+"</td><td class='num'>"+s.titulo+"</td><td class='num'>"+s.nota+"</td><td class='num'>"+s.subtotal+"</td></tr>";
+    }).join("");
+    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>hoja</th><th>familia</th><th>estado</th><th>partidas</th><th>parc.</th><th>tít.</th><th>notas</th><th>subt.</th></tr></thead><tbody>'+rows+'</tbody></table>';
+
+    // ---- PREVIEW de la tabla canónica ----
     var NUM={medicion:1,precio_unitario:1,importe:1};
     var head="<thead><tr>"+det.CANON.map(function(c){return "<th>"+c+"</th>";}).join("")+"</tr></thead>";
     var body=m.slice(0,200).map(function(r){
       return "<tr>"+det.CANON.map(function(c){
-        var v=r[c]; var num=NUM[c]&&v!==""&&v!=null;
-        var disp = num ? Number(v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:(c==="medicion"?4:2)}) : esc(v==null?"":v);
+        var v=r[c], num=NUM[c]&&v!==""&&v!=null;
+        var disp=num?Number(v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:(c==="medicion"?4:2)}):esc(v==null?"":v);
         return '<td'+(num?' class="num"':'')+'>'+disp+'</td>';
       }).join("")+"</tr>";
     }).join("");
@@ -387,13 +385,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       (m.length>200?'<p class="muted" style="font-size:12px">Mostrando 200 de '+m.length+' filas. El Excel descargado las trae todas.</p>':'')) : "";
   }
 
-  // descarga del Excel normalizado (14 columnas + Notas)
+  // ---- descarga del Excel normalizado (14 columnas + Notas) ----
   $("dl").addEventListener("click",function(){
     if(!ultimo) return;
     var C=ultimo.CANON;
     var aoa=[C].concat(ultimo.mediciones.map(function(r){return C.map(function(c){return r[c]===""?null:r[c];});}));
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    // anchos y formato numérico
     ws["!cols"]=[{wch:22},{wch:14},{wch:9},{wch:22},{wch:22},{wch:18},{wch:40},{wch:10},{wch:50},{wch:32},{wch:7},{wch:13},{wch:14},{wch:14}];
     var numCols={11:"#,##0.00",12:"#,##0.00",13:"#,##0.00"};
     var rng=XLSX.utils.decode_range(ws["!ref"]);

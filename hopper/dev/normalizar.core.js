@@ -171,6 +171,20 @@
   function nuevoStats(){ return {titulo:0,partida:0,parcial:0,nota:0,subtotal:0,vacia:0}; }
   function esExcluida(nombre){ return /resumo|resumen|^folha\d|^sheet\d|^hoja\d/i.test(nombre.trim()); }
 
+  // ---- autoevaluación: ¿esta hoja es dudosa? (red de seguridad, sin interacción) ----
+  function unidadSospechosa(u){ u=String(u).trim(); return u.length>6 || (u!=="" && /^[\d.,]+$/.test(u)); }
+  function avisosDe(inf, medRows){
+    var a=[];
+    if(inf.headerRow<0) a.push("no se localizó cabecera (usando mapeo por defecto)");
+    else if(inf.headerScore<3) a.push("cabecera de baja confianza: revisa el mapeo de columnas");
+    if(inf.stats.partida===0) a.push("0 partidas — ¿no es hoja de medición, o el mapeo es incorrecto?");
+    var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
+    var ul=Object.keys(us); if(ul.length) a.push("unidades sospechosas: "+ul.slice(0,6).join(", "));
+    var z=medRows.filter(function(r){return r.medicion===0;}).length;
+    if(z>0) a.push(z+" medición(es) a 0");
+    return a;
+  }
+
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // overrides: { hojaNombre: {familia, headerRow, cols, excluir} }  para la UI
   function normalizar(wb, archivo, XLSX, overrides){
@@ -187,12 +201,13 @@
       var cols = ov.cols||det.cols;
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,excluida:excl,
                   headerScore:det.headerScore,filas:grid.length};
-      if(excl){ info[hoja].stats=nuevoStats(); return; }
-      var stats=nuevoStats(), res;
+      if(excl){ info[hoja].stats=nuevoStats(); info[hoja].avisos=[]; return; }
+      var stats=nuevoStats(), res, medRows=[];
       if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
-      res.forEach(function(r){ if(Array.isArray(r)) notas.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medic.push(r); });
+      res.forEach(function(r){ if(Array.isArray(r)) notas.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else { medic.push(r); medRows.push(r); } });
       info[hoja].stats=stats;
+      info[hoja].avisos=avisosDe(info[hoja], medRows);
     });
     return { mediciones:medic, notas:notas, info:info, CANON:CANON };
   }

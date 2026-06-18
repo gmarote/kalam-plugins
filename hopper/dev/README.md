@@ -14,28 +14,40 @@ son heurísticas deterministas, portables a JavaScript.
 - **`hopper_normalizador.html`** — standalone (~900 KB). Lleva embebidos:
   - **SheetJS** (`xlsx.full.min.js`) para leer `.xlsx`/`.xls` en el navegador.
   - **`normalizar.core.js`** — el motor de reglas (port de `assets/extraer.py`).
-  - una **UI** que recorre todas las pestañas, auto-detecta cabecera/familia/mapeo,
-    deja **confirmar y corregir el mapeo con desplegables**, muestra preview y
+  - una **UI 100% automática**: sueltas el fichero y sale el Excel. **Sin
+    formularios de mapeo** (no escalan a un Excel de muchas pestañas). Recorre
+    todas las hojas solo, muestra un **panel de avisos** que marca *solo* las
+    hojas dudosas (0 partidas, unidades raras, cabecera de baja confianza,
+    mediciones a 0), un **detalle por hoja** compacto (tabla de solo lectura) y
     descarga el Excel normalizado (14 columnas + `Notas`).
 - **`normalizar.core.js`** — el motor, también usable en Node (`module.exports`).
+  Incluye la **autoevaluación** (`avisosDe`): la red de seguridad sin interacción.
+- **`banco-pruebas.js`** — arnés headless para "entrenar con muchos ficheros":
+  `node banco-pruebas.js <carpeta>` normaliza todos los Excel de una carpeta con
+  el mismo motor y reporta mediciones, hojas usadas y **auto-éxito** (% de hojas
+  sin avisos). No instala nada: usa el SheetJS embebido en el HTML.
 
-El Excel **nunca sale del navegador** (privacidad total). La IA solo haría falta
-para mapear automáticamente los ficheros irregulares sin que nadie confirme.
+El Excel **nunca sale del navegador** (privacidad total). El modelo es **auto +
+avisos**: cero interacción obligatoria; los avisos son una red de seguridad que
+puedes ignorar. La IA solo haría falta para resolver *automáticamente* los
+ficheros irregulares que hoy quedan marcados para revisar.
 
-## Resultados (mismos ficheros que el extractor Python)
+## Resultados (banco de pruebas, 5 ficheros reales)
 
-El motor JS reproduce **exactamente** los conteos validados del extractor:
+`node banco-pruebas.js <carpeta>` → **auto-éxito 60%** (9/15 hojas sin avisos).
+El motor JS reproduce **exactamente** los conteos del extractor Python en los
+ficheros limpios (Rossio 58, Ferragial ESP 220, Palácio 1.696 con 497 rescatadas).
 
-| Fichero | partidas | nota |
-|---|---|---|
-| Rossio · MQT_Plengil | 58 (2 notas, 10 subtotales) | = Python |
-| Ferragial ESP · Estimativa | 220 | = Python |
-| Palácio Mendia · MQT (+ESTALE+Limpezas) | 1.696 (497 rescatadas) | = Python |
-| Calçada (familia formato) | jerarquía incompleta | necesita ajuste de mapeo en la UI + función de zonas |
+Las hojas marcadas para revisar (y por qué el panel hace bien en marcarlas):
+- Rossio · `Medições_Plengil` → 0 partidas (es la hoja de dimensiones, no fuente).
+- Palácio · `ESTALE`/`Limpezas` → cabecera dudosa / no localizada.
+- Calçada · `TRABP` → 0 partidas.
 
-La auto-detección de mapeo acierta los casos limpios; donde duda (maquetas ricas
-tipo Ferragial ARQ, o formato con zonas) **la UI deja corregirlo a mano** — que es
-justo el sustituto de la IA en la capa 1.
+Falsos negativos conocidos (lo que aún hay que endurecer):
+- **Ferragial ARQ** sale "limpio" con 1.555 filas **sin verificar** — maqueta rica
+  e irregular; el motor confía de más. Necesita reglas específicas o verificación.
+- **Calçada (formato)** extrae partidas pero la **jerarquía queda incompleta**
+  (familia formato + zonas a medio hacer); el aviso no lo detecta todavía.
 
 ## Reconstruir el HTML
 
@@ -44,8 +56,17 @@ El HTML es: carcasa + `<script>` de SheetJS + `<script>` de `normalizar.core.js`
 SheetJS embebida se tomó de un build offline). El motor (`normalizar.core.js`) es
 la fuente de verdad y debe mantenerse en paridad con `assets/extraer.py`.
 
-## Limitaciones (es un prototipo)
+## Limitaciones (es una maqueta en desarrollo)
 
-- Familia **formato** y **zonas** (`zona_<nombre>`) aún no completas en la UI.
-- La auto-detección de columnas es heurística: confirmar siempre el mapeo.
-- Sin perfiles guardados ni validaciones de Fase 5 (todavía).
+- Familia **formato** y **zonas** (`zona_<nombre>`) aún no completas.
+- La auto-detección de columnas es heurística: por eso existe el panel de avisos.
+  Hay falsos negativos (ver arriba) que se irán cazando con más ficheros.
+- Sin perfiles guardados ni validaciones completas de Fase 5 (todavía).
+
+## Próximos pasos
+
+1. Completar **familia formato + zonas** en el motor (desbloquea Calçada).
+2. Endurecer la **auto-detección** y los **avisos** (cazar los falsos negativos:
+   maquetas ricas tipo ARQ, jerarquía formato incompleta).
+3. Ampliar el **corpus** y medir el auto-éxito con `banco-pruebas.js`.
+4. Mantener `normalizar.core.js` en **paridad** con `assets/extraer.py`.
