@@ -10,6 +10,11 @@
       "name": "morse",
       "description": "Sistema de gestión de comunicaciones de obra",
       "source": "./morse"
+    },
+    {
+      "name": "hopper",
+      "description": "Traduce el Excel de mediciones de cualquier arquitecto a una tabla estructurada estándar.",
+      "source": "./hopper"
     }
   ]
 }
