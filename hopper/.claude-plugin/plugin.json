@@ -1,6 +1,6 @@
 {
   "name": "hopper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Traduce el Excel de mediciones de cualquier arquitecto a una tabla estructurada estándar.",
   "author": {
     "name": "Gerardo Marote"
