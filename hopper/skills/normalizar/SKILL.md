@@ -68,14 +68,19 @@ Soporta `.xlsx` y `.xls`. Para cada pestaña, observa:
 
 - Nº de pestañas y sus nombres. Identifica cuáles son **datos** y cuáles son
   **resumen / duplicadas / vacías** (p. ej. `Resumo`, `Folha3`).
-- Dónde está la **fila de cabecera** (puede estar desplazada y ser multilínea,
-  `Nº\nArtigo`, `Custo\nUnitário`) y qué columna es cada cosa.
+- Dónde está la **fila de cabecera** (puede estar desplazada, ser multilínea
+  `Nº\nArtigo`, e incluso ocupar **dos filas** —grupo `Dimensões`/`Quantidades`/
+  `Preços` y debajo `Comp | Largura | Parciais | Totais | …`) y qué columna es
+  cada cosa. Si hay `Parciais` **y** `Totais`, la medición es **`Totais`**.
 - Una **muestra** de filas de datos (10-20) para ver la estructura real:
-  códigos, títulos, partidas, parciales, notas, subtotales.
+  códigos, títulos, partidas, parciales, notas, subtotales. Ojo al **`0`
+  fantasma** (ceros de fórmula en columnas de unidad/cantidad de filas que no
+  son medición) — no es una unidad ni una medición real.
 
-Con eso, **deduce la familia** (código o formato) según
-`references/familias-de-formato.md`. Si hay un perfil guardado para este
-estudio (ver Fase 7), cárgalo y salta directo a confirmar.
+Ten siempre presente la **regla madre** (ver `references/familias-de-formato.md`):
+lo que decide si una fila es medición es **¿tiene unidad y medición?**, nunca el
+código. Con eso, **deduce la familia** (código o formato). Si hay un perfil
+guardado para este **tipo de fichero** (ver Fase 7), cárgalo y salta a confirmar.
 
 No proceses todavía: primero acuerda.
 
@@ -90,7 +95,9 @@ defecto ya marcada (que el usuario confirme con un "sí" si está de acuerdo):
 1. **Pestañas fuente.** "Veo estas pestañas; usaría estas como mediciones e
    ignoraría `Resumo` y `Folha3` (parecen resumen/duplicados). ¿Correcto?"
 2. **Mapeo de columnas.** "He leído: código = col A, descripción = col B,
-   unidad = col C, medición = col D, precio = col E. ¿Es así?"
+   unidad = col C, medición = col D, precio = col E. ¿Es así?" Si hay columnas
+   `Parciais` y `Totais`, la medición es la de **`Totais`**. En maquetas ricas
+   (muchas columnas, `0` fantasma) **no fíes del mapeo por defecto**: confírmalo.
 3. **Parciales** (SIEMPRE preguntar). "Las partidas traen su desglose de
    medición (parciales). ¿Los conservo como filas de detalle (recomendado) o
    los colapso sumándolos en la partida?"
@@ -167,14 +174,17 @@ usadas y decisiones tomadas (parciales, código, zonas).
 
 ## Fase 7 — Guardar el perfil del estudio
 
-Tras una normalización validada, ofrece **guardar el perfil** del arquitecto/
-estudio: la familia, el mapeo de columnas, las pestañas a excluir y las
-decisiones (parciales, código, zonas, unidades). Guárdalo como un JSON con el
-nombre del estudio. La próxima vez que llegue una medición de ese estudio,
-cárgalo en Fase 2 y salta directo a confirmar — sin rehacer el análisis.
+Tras una normalización validada, ofrece **guardar el perfil**: la familia, el
+mapeo de columnas, las pestañas a excluir y las decisiones (parciales, código,
+zonas, unidades). Guárdalo como un JSON. La próxima vez que llegue una medición
+igual, cárgalo en Fase 2 y salta directo a confirmar — sin rehacer el análisis.
+
+El perfil es **por tipo de fichero, no solo por estudio**: un mismo proyecto
+puede traer varias maquetas (p. ej. Ferragial ARQ y Ferragial ESP, mismo
+proyecto pero estructuras distintas), y cada una necesita su receta.
 
 Un perfil es solo la CONFIG del extractor más metadatos de detección
-(marcadores de cabecera, nombre del estudio). No contiene datos del cliente.
+(marcadores de cabecera, nombre del fichero/estudio). No contiene datos del cliente.
 
 ---
 

@@ -24,10 +24,42 @@ CONFIG (JSON):
 """
 import sys, json, re
 import pandas as pd
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
 
 CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
          "ruta", "codigo", "partida", "detalle", "unidad", "medicion",
          "precio_unitario", "importe"]
+
+# ---------- formato de salida (presentación; nunca toca los datos) ----------
+ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "capitulo": 22,
+          "subcapitulo": 24, "seccion": 20, "ruta": 42, "codigo": 10,
+          "partida": 52, "detalle": 34, "unidad": 7, "medicion": 13,
+          "precio_unitario": 14, "importe": 14, "nota": 90}
+WRAP = {"partida", "detalle", "ruta", "subcapitulo", "seccion", "nota"}
+# Formato PT/ES (punto de millares, coma decimal) forzado con locale pt-PT [$-816],
+# para que se vea igual sea cual sea el idioma del Excel del cliente.
+NUMFMT = {"medicion": "[$-816]#,##0.00", "precio_unitario": "[$-816]#,##0.00",
+          "importe": "[$-816]#,##0.00"}
+
+def formatear(ws, columnas):
+    ws.freeze_panes = "A2"                 # cabecera siempre visible
+    ws.row_dimensions[1].height = 26
+    bold = Font(bold=True)
+    gris = PatternFill("solid", fgColor="E6E6E6")   # gris suave para la cabecera
+    top = Alignment(vertical="top")
+    top_wrap = Alignment(vertical="top", wrap_text=True)
+    for j, name in enumerate(columnas, start=1):
+        head = ws.cell(row=1, column=j)
+        head.font = bold
+        head.fill = gris
+        head.alignment = top
+        ws.column_dimensions[get_column_letter(j)].width = ANCHOS.get(name, 16)
+        fmt, align = NUMFMT.get(name), (top_wrap if name in WRAP else top)
+        for i in range(2, ws.max_row + 1):
+            c = ws.cell(row=i, column=j)
+            c.alignment = align            # todo alineado arriba
+            if fmt: c.number_format = fmt
 
 DEFAULT_COLS = {
     "codigo":  {"code": 0, "desc": 1, "unit": 2, "qty": 3, "price": 4},
@@ -85,14 +117,26 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
         fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
+        if unit == "0": unit = ""          # "0" fantasma (fórmula) en cabeceras: no es unidad
         qty, price = to_num(g("qty")), to_num(g("price"))
         if not code and not desc and qty is None:
             stats["vacia"] += 1; continue
+        if re.match(r"(?i)^(sub\s*total|total)\b", desc) and qty is None:
+            stats["subtotal"] += 1; continue                  # subtotal/total: se descarta
         if is_letter_chapter(code) and qty is None:           # capítulo solo-letra (E)
             stats["titulo"] += 1; titles = {1: desc}; continue
         if not is_struct_code(code):
-            stats["nota" if desc else "vacia"] += 1
-            if desc: out.append(("__nota__", hoja, fila, desc))
+            if qty is not None and unit:                      # ítem real sin código útil: NO se pierde
+                stats["partida"] += 1
+                ruta = " > ".join(titles[k] for k in sorted(titles) if titles.get(k))
+                out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
+                               capitulo=titles.get(1, ""), subcapitulo=titles.get(2, ""),
+                               seccion=titles.get(3, ""), ruta=ruta, codigo="", partida=desc,
+                               unidad=unit, medicion=qty,
+                               precio_unitario=("" if price is None else price)))
+            else:
+                stats["nota" if desc else "vacia"] += 1
+                if desc: out.append(("__nota__", hoja, fila, desc))
             continue
         nivel = len(code.split("."))
         if qty is not None and unit:                          # partida (hoja de medición)
@@ -126,6 +170,7 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
         fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
+        if unit == "0": unit = ""          # "0" fantasma (fórmula) en cabeceras: no es unidad
         qty, price = to_num(g("qty")), to_num(g("price"))
         if desc == "DESCRITIVO": continue
         if not code and not desc and qty is None:
@@ -207,8 +252,11 @@ def main():
 
     with pd.ExcelWriter(dst, engine="openpyxl") as w:
         pd.DataFrame(medic, columns=CANON).to_excel(w, sheet_name="Mediciones", index=False)
+        formatear(w.sheets["Mediciones"], CANON)
         if cfg.get("volcar_notas") and notas:
-            pd.DataFrame(notas).to_excel(w, sheet_name="Notas", index=False)
+            notas_cols = ["hoja", "fila_origen", "nota"]
+            pd.DataFrame(notas, columns=notas_cols).to_excel(w, sheet_name="Notas", index=False)
+            formatear(w.sheets["Notas"], notas_cols)
 
     print(f"Familia: {familia} · hojas: {[h for h in hojas if h not in excl]}")
     print(f"Clasificación: {json.dumps(stats, ensure_ascii=False)}")
