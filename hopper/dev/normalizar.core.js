@@ -262,8 +262,40 @@
     return { mediciones:medic, notas:notas, info:info, CANON:CANON };
   }
 
+  // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
+  // items: [{archivo, det}]  (det = resultado de normalizar). Un fichero se descarta
+  // si sus ítems están contenidos (>=80%) en otro mayor (p. ej. cargar dos veces el
+  // mismo). Especialidades distintas (Ferragial ARQ vs ESP) NO se solapan -> se suman.
+  function acumular(items){
+    var claves=items.map(function(it){ return clavesDe(it.det.mediciones); });
+    var n=claves.map(function(k){ return Object.keys(k).length; });
+    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:""}; });
+    for(var a=0;a<items.length;a++){
+      if(n[a]===0) continue;
+      for(var b=0;b<items.length;b++){
+        if(b===a) continue;
+        var mayor = n[b]>n[a] || (n[b]===n[a] && b<a);
+        var c=contencion(claves[a], claves[b]);
+        if(mayor && c>=0.8){ archivos[a].excluido=true; archivos[a].motivo="duplicado de «"+items[b].archivo+"» ("+Math.round(100*c)+"%)"; break; }
+      }
+    }
+    var medic=[], notas=[], hojas=[];
+    items.forEach(function(it,i){
+      if(archivos[i].excluido) return;
+      medic=medic.concat(it.det.mediciones);
+      notas=notas.concat(it.det.notas);
+      Object.keys(it.det.info).forEach(function(h){
+        var inf=it.det.info[h];
+        hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
+                    motivo:inf.motivo,avisos:inf.avisos||[]});
+      });
+    });
+    return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };
+  }
+
   var API={CANON:CANON,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar};
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+           clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
 })(typeof window!=="undefined"?window:this);

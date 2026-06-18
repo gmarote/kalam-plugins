@@ -59,6 +59,11 @@
   .muted{color:var(--muted)}.hide{display:none}
   .e-ok{color:var(--ok);font-weight:700}.e-warn{color:var(--warn);font-weight:700}.e-excl{color:var(--faint)}
   h2.sec{font-size:14px;color:var(--slate);margin:24px 0 6px;font-weight:700}
+  .farchivo{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .farchivo:first-child{border-top:0}
+  .farchivo .nom{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .farchivo .cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .farchivo .dup{color:var(--warn);font-weight:600}
 </style>
 </head>
 <body>
@@ -79,12 +84,20 @@
 </header>
 <main>
   <label class="dropzone" id="drop">
-    <input type="file" id="file" accept=".xlsx,.xls">
+    <input type="file" id="file" accept=".xlsx,.xls" multiple>
     <span class="dz-ico">📐</span>
-    <div class="dz-title">Suelta aquí el Excel de mediciones</div>
-    <div class="dz-sub">o haz clic para elegirlo · acepta <b>.xlsx</b> y <b>.xls</b></div>
-    <span class="dz-pill">🔒 El archivo no sube a ningún sitio: se normaliza aquí mismo</span>
+    <div class="dz-title">Suelta aquí tus Excel de mediciones</div>
+    <div class="dz-sub">uno o varios · se <b>acumulan</b> en una sola tabla · acepta <b>.xlsx</b> y <b>.xls</b></div>
+    <span class="dz-pill">🔒 Nada sube a ningún sitio: se normaliza aquí mismo</span>
   </label>
+
+  <div class="panel hide" id="archivosWrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
+      <b id="archivosSum" style="font-size:13.5px;color:var(--slate)">Archivos cargados</b>
+      <button id="reset" style="background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;font:600 12px inherit;color:var(--muted);cursor:pointer">Empezar de nuevo</button>
+    </div>
+    <div id="archivos"></div>
+  </div>
 
   <div class="toolbar hide" id="toolbar">
     <button class="primary" id="dl">⬇ Descargar Excel normalizado</button>
@@ -385,80 +398,129 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return { mediciones:medic, notas:notas, info:info, CANON:CANON };
   }
 
+  // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
+  // items: [{archivo, det}]  (det = resultado de normalizar). Un fichero se descarta
+  // si sus ítems están contenidos (>=80%) en otro mayor (p. ej. cargar dos veces el
+  // mismo). Especialidades distintas (Ferragial ARQ vs ESP) NO se solapan -> se suman.
+  function acumular(items){
+    var claves=items.map(function(it){ return clavesDe(it.det.mediciones); });
+    var n=claves.map(function(k){ return Object.keys(k).length; });
+    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:""}; });
+    for(var a=0;a<items.length;a++){
+      if(n[a]===0) continue;
+      for(var b=0;b<items.length;b++){
+        if(b===a) continue;
+        var mayor = n[b]>n[a] || (n[b]===n[a] && b<a);
+        var c=contencion(claves[a], claves[b]);
+        if(mayor && c>=0.8){ archivos[a].excluido=true; archivos[a].motivo="duplicado de «"+items[b].archivo+"» ("+Math.round(100*c)+"%)"; break; }
+      }
+    }
+    var medic=[], notas=[], hojas=[];
+    items.forEach(function(it,i){
+      if(archivos[i].excluido) return;
+      medic=medic.concat(it.det.mediciones);
+      notas=notas.concat(it.det.notas);
+      Object.keys(it.det.info).forEach(function(h){
+        var inf=it.det.info[h];
+        hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
+                    motivo:inf.motivo,avisos:inf.avisos||[]});
+      });
+    });
+    return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };
+  }
+
   var API={CANON:CANON,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar};
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+           clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
 })(typeof window!=="undefined"?window:this);
 </script>
 <script>
-/* ---- UI del prototipo: 100% automática. Suelta el fichero y sale el Excel.
-   Sin formularios de mapeo. Un panel de AVISOS marca solo las hojas dudosas. ---- */
+/* ---- UI: acumula varios ficheros en una sola tabla. Auto + avisos.
+   Dentro de cada fichero se deduplica por hojas; entre ficheros, por fichero. ---- */
 (function(){
   var XLSX = window.XLSX, core = window.HopperCore;
-  var archivo="", ultimo=null;
+  var cargados = [];   // [{archivo, det}]
+  var merged = null;
   var $=function(id){return document.getElementById(id);};
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 
-  // drag & drop + file input
   var drop=$("drop"), file=$("file");
   ["dragenter","dragover"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add("over");});});
   ["dragleave","drop"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove("over");});});
-  drop.addEventListener("drop",function(ev){ if(ev.dataTransfer.files[0]) cargar(ev.dataTransfer.files[0]); });
-  file.addEventListener("change",function(){ if(file.files[0]) cargar(file.files[0]); });
+  drop.addEventListener("drop",function(ev){ if(ev.dataTransfer.files.length) cargarVarios(ev.dataTransfer.files); });
+  file.addEventListener("change",function(){ if(file.files.length) cargarVarios(file.files); file.value=""; });
+  $("reset").addEventListener("click",function(){ cargados=[]; merged=null; recalcular(); });
 
-  function cargar(f){
-    archivo=f.name;
-    var rd=new FileReader();
-    rd.onload=function(){
-      var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-      ultimo=core.normalizar(wb, archivo, XLSX, {});   // automático, sin overrides
-      render(ultimo);
-    };
-    rd.readAsArrayBuffer(f);
+  function cargarVarios(fileList){
+    var arr=Array.prototype.slice.call(fileList), pend=arr.length;
+    arr.forEach(function(f){
+      var rd=new FileReader();
+      rd.onload=function(){
+        var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
+        cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})});
+        if(--pend===0) recalcular();
+      };
+      rd.readAsArrayBuffer(f);
+    });
   }
 
-  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function recalcular(){
+    merged = cargados.length ? core.acumular(cargados) : null;
+    render();
+  }
 
-  function render(det){
-    var m=det.mediciones, hojas=Object.keys(det.info);
-    var usadas=hojas.filter(function(h){return !det.info[h].excluida;});
-    var dup=hojas.filter(function(h){return det.info[h].excluida;});
+  function render(){
+    if(!merged){
+      $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
+      $("avisosWrap").classList.add("hide"); $("detalleWrap").classList.add("hide");
+      $("preview").innerHTML=""; return;
+    }
+    var m=merged.mediciones;
 
+    // archivos cargados
+    $("archivosWrap").classList.remove("hide");
+    $("archivosSum").textContent = "Archivos cargados · "+merged.archivos.length;
+    $("archivos").innerHTML = merged.archivos.map(function(a){
+      return '<div class="farchivo"><span class="nom">'+(a.excluido?"♻ ":"📄 ")+esc(a.nombre)+'</span>'+
+        (a.excluido?'<span class="cnt dup">'+esc(a.motivo)+'</span>':'<span class="cnt">'+a.nMed+' partidas</span>')+'</div>';
+    }).join("");
+
+    // toolbar + resumen
     $("toolbar").classList.toggle("hide", m.length===0);
-    $("summary").textContent = m.length+" mediciones · "+det.notas.length+" notas · "+
-      usadas.length+" hojas usadas"+(dup.length?(" · "+dup.length+" descartadas por duplicado"):"")+" de "+hojas.length;
+    var usados=merged.archivos.filter(function(a){return !a.excluido;}).length;
+    var dupF=merged.archivos.length-usados;
+    $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
+      usados+" fichero"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
-    // ---- AVISOS (panel plegable): duplicados descartados + hojas dudosas ----
-    var avisos="", n=0;
-    dup.forEach(function(h){
-      avisos+='<div class="aviso"><b>♻ '+esc(h)+' — descartada</b><ul><li>'+esc(det.info[h].motivo)+'</li></ul></div>'; n++;
-    });
-    usadas.forEach(function(h){
-      var av=det.info[h].avisos||[];
-      if(av.length){ avisos+='<div class="aviso"><b>⚠ '+esc(h)+'</b><ul>'+av.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
+    // avisos (plegable): duplicados de fichero + hojas dudosas
+    var av="", n=0;
+    merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — descartado</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
+    merged.hojas.forEach(function(h){
+      if(h.excluida){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja descartada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
+      else if(h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
     });
     $("avisosWrap").classList.toggle("hide", m.length===0);
     $("avisosWrap").open = n>0;
-    $("avisosSum").textContent = n ? ("Avisos · "+n+" hoja"+(n>1?"s":"")+" a revisar") : "Avisos · todo correcto ✓";
-    $("avisos").innerHTML = n ? avisos : '<div class="ok">✓ Detección limpia y sin duplicados entre hojas.</div>';
+    $("avisosSum").textContent = n ? ("Avisos · "+n+" a revisar") : "Avisos · todo correcto ✓";
+    $("avisos").innerHTML = n ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
 
-    // ---- DETALLE POR HOJA (solo lo de ejecución: estado + nº de partidas) ----
-    $("detalleWrap").classList.toggle("hide", hojas.length===0);
-    $("detalleSum").textContent = "Detalle por hoja · "+hojas.length+" hoja"+(hojas.length>1?"s":"");
-    var rows=hojas.map(function(h){
-      var i=det.info[h];
-      var estado = i.excluida ? '<span class="e-excl" title="'+esc(i.motivo||"")+'">duplicada</span>'
-                 : (i.avisos&&i.avisos.length) ? '<span class="e-warn">revisar</span>'
-                 : '<span class="e-ok">ok</span>';
-      return "<tr><td>"+esc(h)+"</td><td>"+estado+"</td><td class='num'>"+(i.nMed||0)+"</td></tr>";
+    // detalle por hoja (plegable): archivo · hoja · estado · partidas
+    $("detalleWrap").classList.toggle("hide", merged.hojas.length===0);
+    $("detalleSum").textContent = "Detalle por hoja · "+merged.hojas.length;
+    var rows=merged.hojas.map(function(h){
+      var estado = h.excluida ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">duplicada</span>'
+                 : (h.avisos.length) ? '<span class="e-warn">revisar</span>' : '<span class="e-ok">ok</span>';
+      return "<tr><td>"+esc(h.archivo)+"</td><td>"+esc(h.hoja)+"</td><td>"+estado+"</td><td class='num'>"+h.nMed+"</td></tr>";
     }).join("");
-    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>hoja</th><th>estado</th><th>partidas</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>archivo</th><th>hoja</th><th>estado</th><th>partidas</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
-    // ---- PREVIEW de la tabla canónica ----
+    // preview
     var NUM={medicion:1,precio_unitario:1,importe:1};
-    var head="<thead><tr>"+det.CANON.map(function(c){return "<th>"+c+"</th>";}).join("")+"</tr></thead>";
+    var head="<thead><tr>"+merged.CANON.map(function(c){return "<th>"+c+"</th>";}).join("")+"</tr></thead>";
     var body=m.slice(0,200).map(function(r){
-      return "<tr>"+det.CANON.map(function(c){
+      return "<tr>"+merged.CANON.map(function(c){
         var v=r[c], num=NUM[c]&&v!==""&&v!=null;
         var disp=num?Number(v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:(c==="medicion"?4:2)}):esc(v==null?"":v);
         return '<td'+(num?' class="num"':'')+'>'+disp+'</td>';
@@ -468,11 +530,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       (m.length>200?'<p class="muted" style="font-size:12px">Mostrando 200 de '+m.length+' filas. El Excel descargado las trae todas.</p>':'')) : "";
   }
 
-  // ---- descarga del Excel normalizado (14 columnas + Notas) ----
+  // descarga del Excel acumulado
   $("dl").addEventListener("click",function(){
-    if(!ultimo) return;
-    var C=ultimo.CANON;
-    var aoa=[C].concat(ultimo.mediciones.map(function(r){return C.map(function(c){return r[c]===""?null:r[c];});}));
+    if(!merged) return;
+    var C=merged.CANON;
+    var aoa=[C].concat(merged.mediciones.map(function(r){return C.map(function(c){return r[c]===""?null:r[c];});}));
     var ws=XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"]=[{wch:22},{wch:14},{wch:9},{wch:22},{wch:22},{wch:18},{wch:40},{wch:10},{wch:50},{wch:32},{wch:7},{wch:13},{wch:14},{wch:14}];
     var numCols={11:"#,##0.00",12:"#,##0.00",13:"#,##0.00"};
@@ -481,8 +543,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var ad=XLSX.utils.encode_cell({r:R,c:+Cn}), cell=ws[ad]; if(cell&&cell.v!=null&&cell.v!==""){cell.t="n";cell.z=numCols[Cn];}
     });
     var out=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(out,ws,"Mediciones");
-    if(ultimo.notas.length){ var wn=XLSX.utils.json_to_sheet(ultimo.notas); wn["!cols"]=[{wch:16},{wch:9},{wch:90}]; XLSX.utils.book_append_sheet(out,wn,"Notas"); }
-    XLSX.writeFile(out, (archivo.replace(/\.(xlsx|xls)$/i,"")||"mediciones")+"_normalizado.xlsx");
+    if(merged.notas.length){ var wn=XLSX.utils.json_to_sheet(merged.notas); wn["!cols"]=[{wch:16},{wch:9},{wch:90}]; XLSX.utils.book_append_sheet(out,wn,"Notas"); }
+    var nombre = cargados.length===1 ? cargados[0].archivo.replace(/\.(xlsx|xls)$/i,"") : "mediciones_acumuladas";
+    XLSX.writeFile(out, nombre+"_normalizado.xlsx");
   });
 })();
 </script>
