@@ -1,4 +1,7 @@
-# Prototipo — Capa 1 sin IA (HTML standalone)
+# dev — Capa 1 sin IA (HTML standalone)
+
+Zona de **desarrollo** de la Capa 1, donde se evoluciona la maqueta (lo estable
+se irá consolidando en el resto del plugin). Primera maqueta funcional.
 
 Prueba de concepto de normalizar un MQT **sin IA en tiempo de ejecución** y **sin
 servidor**: un único HTML con todo el código dentro. Responde a la pregunta de si
