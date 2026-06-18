@@ -37,7 +37,10 @@ ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "capitulo": 22,
           "partida": 52, "detalle": 34, "unidad": 7, "medicion": 13,
           "precio_unitario": 14, "importe": 14, "nota": 90}
 WRAP = {"partida", "detalle", "ruta", "subcapitulo", "seccion", "nota"}
-NUMFMT = {"medicion": "#,##0.####", "precio_unitario": "#,##0.00", "importe": "#,##0.00"}
+# Formato PT/ES (punto de millares, coma decimal) forzado con locale pt-PT [$-816],
+# para que se vea igual sea cual sea el idioma del Excel del cliente.
+NUMFMT = {"medicion": "[$-816]#,##0.####", "precio_unitario": "[$-816]#,##0.00",
+          "importe": "[$-816]#,##0.00"}
 
 def formatear(ws, columnas):
     ws.freeze_panes = "A2"                 # cabecera siempre visible
