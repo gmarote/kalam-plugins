@@ -15,11 +15,15 @@ son heurísticas deterministas, portables a JavaScript.
   - **SheetJS** (`xlsx.full.min.js`) para leer `.xlsx`/`.xls` en el navegador.
   - **`normalizar.core.js`** — el motor de reglas (port de `assets/extraer.py`).
   - una **UI 100% automática**: sueltas el fichero y sale el Excel. **Sin
-    formularios de mapeo** (no escalan a un Excel de muchas pestañas). Recorre
-    todas las hojas solo, muestra un **panel de avisos** que marca *solo* las
-    hojas dudosas (0 partidas, unidades raras, cabecera de baja confianza,
-    mediciones a 0), un **detalle por hoja** compacto (tabla de solo lectura) y
-    descarga el Excel normalizado (14 columnas + `Notas`).
+    formularios de mapeo** (no escalan a un Excel de muchas pestañas). Revisa
+    **todas** las hojas (no se descarta nada por nombre), muestra un **panel de
+    avisos** que marca *solo* las hojas dudosas (0 partidas, unidades raras,
+    cabecera de baja confianza, mediciones a 0), un **detalle por hoja** compacto
+    (tabla de solo lectura) y descarga el Excel normalizado (14 columnas + `Notas`).
+  - **deduplicación entre hojas**: si los ítems de una hoja están contenidos
+    (≥80%) en otra mayor, se descarta como duplicada (evita el doble conteo del
+    patrón "hoja agregado + hojas por capítulo", p. ej. Palácio: `MQT` master,
+    `ESTALE`/`Limpezas`/`Folha3` descartadas al 100%).
 - **`normalizar.core.js`** — el motor, también usable en Node (`module.exports`).
   Incluye la **autoevaluación** (`avisosDe`): la red de seguridad sin interacción.
 - **`banco-pruebas.js`** — arnés headless para "entrenar con muchos ficheros":

@@ -169,7 +169,6 @@
   }
 
   function nuevoStats(){ return {titulo:0,partida:0,parcial:0,nota:0,subtotal:0,vacia:0}; }
-  function esExcluida(nombre){ return /resumo|resumen|^folha\d|^sheet\d|^hoja\d/i.test(nombre.trim()); }
 
   // ---- autoevaluación: ¿esta hoja es dudosa? (red de seguridad, sin interacción) ----
   function unidadSospechosa(u){ u=String(u).trim(); return u.length>6 || (u!=="" && /^[\d.,]+$/.test(u)); }
@@ -185,35 +184,76 @@
     return a;
   }
 
+  // ---- huella de ítems de una hoja, para detectar duplicados entre hojas ----
+  function clavesDe(medRows){
+    var s={};
+    medRows.forEach(function(r){
+      var k=((r.codigo||"")+"¶"+(r.partida||"")).toLowerCase().replace(/\s+/g," ").trim();
+      if(k!=="¶") s[k]=1;
+    });
+    return s;
+  }
+  function contencion(a,b){            // fracción de claves de A presentes en B
+    var ka=Object.keys(a); if(!ka.length) return 0;
+    var n=0; for(var i=0;i<ka.length;i++) if(b[ka[i]]) n++;
+    return n/ka.length;
+  }
+
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
-  // overrides: { hojaNombre: {familia, headerRow, cols, excluir} }  para la UI
+  // Procesa TODAS las hojas (no se descarta nada por nombre) y descarta solo las
+  // que resulten ser duplicado/subconjunto de otra hoja mayor (evita doble conteo).
   function normalizar(wb, archivo, XLSX, overrides){
     overrides = overrides||{};
-    var medic=[], notas=[], info={};
-    wb.SheetNames.forEach(function(hoja){
-      var ws=wb.Sheets[hoja];
-      var grid=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
-      var det=autoDetect(grid);
-      var ov=overrides[hoja]||{};
-      var excl = ov.excluir!=null ? ov.excluir : esExcluida(hoja);
-      var familia = ov.familia||det.familia;
-      var headerRow = ov.headerRow!=null?ov.headerRow:det.headerRow;
-      var cols = ov.cols||det.cols;
-      info[hoja]={familia:familia,headerRow:headerRow,cols:cols,excluida:excl,
-                  headerScore:det.headerScore,filas:grid.length};
-      if(excl){ info[hoja].stats=nuevoStats(); info[hoja].avisos=[]; return; }
-      var stats=nuevoStats(), res, medRows=[];
+    var info={}, data={}, nombres=wb.SheetNames;
+
+    // 1) parsear todas las hojas
+    nombres.forEach(function(hoja){
+      var grid=XLSX.utils.sheet_to_json(wb.Sheets[hoja],{header:1,raw:true,defval:null});
+      var det=autoDetect(grid), ov=overrides[hoja]||{};
+      var familia=ov.familia||det.familia;
+      var headerRow=ov.headerRow!=null?ov.headerRow:det.headerRow;
+      var cols=ov.cols||det.cols;
+      info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
+                  filas:grid.length,excluida:false,motivo:""};
+      var stats=nuevoStats(), res, medRows=[], notasRows=[];
       if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
-      res.forEach(function(r){ if(Array.isArray(r)) notas.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else { medic.push(r); medRows.push(r); } });
+      res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
       info[hoja].stats=stats;
-      info[hoja].avisos=avisosDe(info[hoja], medRows);
+      data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows)};
+    });
+
+    // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
+    nombres.forEach(function(A){
+      var ka=data[A].claves, na=Object.keys(ka).length;
+      if(na===0) return;
+      for(var j=0;j<nombres.length;j++){
+        var B=nombres[j]; if(B===A) continue;
+        var nb=Object.keys(data[B].claves).length;
+        var mayor = nb>na || (nb===na && j<nombres.indexOf(A));
+        var c=contencion(ka, data[B].claves);
+        if(mayor && c>=0.8){
+          info[A].excluida=true;
+          info[A].motivo="duplicada de «"+B+"» ("+Math.round(100*c)+"% de sus ítems ya están en "+B+")";
+          break;
+        }
+      }
+    });
+
+    // 3) salida desde las hojas no descartadas + avisos
+    var medic=[], notas=[];
+    nombres.forEach(function(h){
+      var i=info[h];
+      if(i.excluida){ i.avisos=[i.motivo]; return; }
+      medic=medic.concat(data[h].medRows);
+      notas=notas.concat(data[h].notas);
+      i.avisos=avisosDe(i, data[h].medRows);
     });
     return { mediciones:medic, notas:notas, info:info, CANON:CANON };
   }
 
   var API={CANON:CANON,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,esExcluida:esExcluida};
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
 })(typeof window!=="undefined"?window:this);
