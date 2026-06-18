@@ -179,17 +179,38 @@
 
   function nuevoStats(){ return {titulo:0,partida:0,parcial:0,nota:0,subtotal:0,vacia:0}; }
 
-  // ---- autoevaluación: ¿esta hoja es dudosa? (red de seguridad, sin interacción) ----
+  // ---- autoevaluación: avisos que EXPLICAN qué pasó y qué hacer (sin jerga) ----
   function unidadSospechosa(u){ u=String(u).trim(); return u.length>6 || (u!=="" && /^[\d.,]+$/.test(u)); }
+  function colLetra(j){
+    j=Number(j); if(isNaN(j)||j<0) return "?";
+    var s=""; j++; while(j>0){ var m=(j-1)%26; s=String.fromCharCode(65+m)+s; j=Math.floor((j-1)/26); }
+    return s;
+  }
   function avisosDe(inf, medRows){
-    var a=[];
-    if(inf.headerRow<0) a.push("no se localizó cabecera (usando mapeo por defecto)");
-    else if(inf.headerScore<3) a.push("cabecera de baja confianza: revisa el mapeo de columnas");
-    if(inf.stats.partida===0) a.push("0 partidas — ¿no es hoja de medición, o el mapeo es incorrecto?");
+    var a=[], c=inf.cols||{}, np=medRows.length;
+    var mapeo="descripción en la columna "+colLetra(c.desc)+", unidad en la "+colLetra(c.unit)+" y cantidad en la "+colLetra(c.qty);
+
+    if(np===0){
+      a.push("No salió ninguna partida de esta hoja. Si es una hoja de resumen, notas o portada, puedes ignorarla. "+
+             "Si debería traer mediciones, es que las columnas no están donde la app esperaba (buscó "+mapeo+").");
+      return a;  // sin partidas, el resto de avisos no aporta
+    }
+    if(inf.headerRow<0)
+      a.push("No encontré una fila de títulos clara (con palabras como «Designação», «Un.», «Quantidade»). "+
+             "Por eso asumí "+mapeo+", y saqué "+np+" partidas. Si cuadran, ignora el aviso; si no, hay que ajustar las columnas.");
+    else if(inf.headerScore<3)
+      a.push("La cabecera (fila "+(inf.headerRow+1)+") venía poco clara, así que asumí "+mapeo+". "+
+             "Saqué "+np+" partidas: conviene comprobar que esas columnas sean las correctas.");
+
     var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
-    var ul=Object.keys(us); if(ul.length) a.push("unidades sospechosas: "+ul.slice(0,6).join(", "));
+    var ul=Object.keys(us);
+    if(ul.length)
+      a.push("En la columna de unidad (la "+colLetra(c.unit)+") aparecen valores raros ("+ul.slice(0,5).join(", ")+"). "+
+             "Puede que esa no sea la columna de unidades.");
+
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0) a.push(z+" medición(es) a 0");
+    if(z>0)
+      a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0. Puede ser normal (aún sin medir) o señal de que la columna de cantidad (la "+colLetra(c.qty)+") no es la correcta.");
     return a;
   }
 
