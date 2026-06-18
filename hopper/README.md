@@ -49,10 +49,13 @@ hopper/
 
 ## Validación
 
-El diseño está validado sobre **5 ficheros reales de 4 estudios distintos**:
-4 caen en la familia *código* (jerarquía por código `1.1.2.1` / `E.1`) y 1 en la
-familia *formato* (una pestaña por capítulo, jerarquía por mayúsculas y
-parciales sin código). Todos producen el mismo esquema de salida.
+El diseño está validado sobre **varios ficheros reales de estudios distintos**
+(Rossio, Palácio Mendia, Ferragial ARQ/ESP, Calçada da Memória): la mayoría caen
+en la familia *código* (jerarquía por código `1.1.2.1` / `E.1`) y otros en
+*formato* (una pestaña por capítulo, jerarquía por mayúsculas, parciales sin
+código e importe por zonas). De ahí salen las **reglas universales** de
+clasificación de `references/familias-de-formato.md` (el discriminante siempre es
+"¿tiene unidad y medición?"). Todos producen el mismo esquema de salida.
 
 ## Alta en el marketplace
 
