@@ -126,8 +126,17 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
         if is_letter_chapter(code) and qty is None:           # capítulo solo-letra (E)
             stats["titulo"] += 1; titles = {1: desc}; continue
         if not is_struct_code(code):
-            stats["nota" if desc else "vacia"] += 1
-            if desc: out.append(("__nota__", hoja, fila, desc))
+            if qty is not None and unit:                      # ítem real sin código útil: NO se pierde
+                stats["partida"] += 1
+                ruta = " > ".join(titles[k] for k in sorted(titles) if titles.get(k))
+                out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
+                               capitulo=titles.get(1, ""), subcapitulo=titles.get(2, ""),
+                               seccion=titles.get(3, ""), ruta=ruta, codigo="", partida=desc,
+                               unidad=unit, medicion=qty,
+                               precio_unitario=("" if price is None else price)))
+            else:
+                stats["nota" if desc else "vacia"] += 1
+                if desc: out.append(("__nota__", hoja, fila, desc))
             continue
         nivel = len(code.split("."))
         if qty is not None and unit:                          # partida (hoja de medición)
