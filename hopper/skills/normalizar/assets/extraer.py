@@ -24,10 +24,38 @@ CONFIG (JSON):
 """
 import sys, json, re
 import pandas as pd
+from openpyxl.styles import Font, Alignment
+from openpyxl.utils import get_column_letter
 
 CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
          "ruta", "codigo", "partida", "detalle", "unidad", "medicion",
          "precio_unitario", "importe"]
+
+# ---------- formato de salida (presentación; nunca toca los datos) ----------
+ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "capitulo": 22,
+          "subcapitulo": 24, "seccion": 20, "ruta": 42, "codigo": 10,
+          "partida": 52, "detalle": 34, "unidad": 7, "medicion": 13,
+          "precio_unitario": 14, "importe": 14, "nota": 90}
+WRAP = {"partida", "detalle", "ruta", "subcapitulo", "seccion", "nota"}
+NUMFMT = {"medicion": "#,##0.####", "precio_unitario": "#,##0.00", "importe": "#,##0.00"}
+
+def formatear(ws, columnas):
+    ws.freeze_panes = "A2"                 # cabecera siempre visible
+    ws.auto_filter.ref = ws.dimensions     # filtros en la cabecera
+    ws.row_dimensions[1].height = 26
+    bold = Font(bold=True)
+    wrap_top = Alignment(vertical="top", wrap_text=True)
+    for j, name in enumerate(columnas, start=1):
+        col = ws.cell(row=1, column=j)
+        col.font = bold
+        col.alignment = Alignment(vertical="center")
+        ws.column_dimensions[get_column_letter(j)].width = ANCHOS.get(name, 16)
+        fmt, wrap = NUMFMT.get(name), name in WRAP
+        if fmt or wrap:
+            for i in range(2, ws.max_row + 1):
+                c = ws.cell(row=i, column=j)
+                if fmt: c.number_format = fmt
+                if wrap: c.alignment = wrap_top
 
 DEFAULT_COLS = {
     "codigo":  {"code": 0, "desc": 1, "unit": 2, "qty": 3, "price": 4},
@@ -211,8 +239,11 @@ def main():
 
     with pd.ExcelWriter(dst, engine="openpyxl") as w:
         pd.DataFrame(medic, columns=CANON).to_excel(w, sheet_name="Mediciones", index=False)
+        formatear(w.sheets["Mediciones"], CANON)
         if cfg.get("volcar_notas") and notas:
-            pd.DataFrame(notas).to_excel(w, sheet_name="Notas", index=False)
+            notas_cols = ["hoja", "fila_origen", "nota"]
+            pd.DataFrame(notas, columns=notas_cols).to_excel(w, sheet_name="Notas", index=False)
+            formatear(w.sheets["Notas"], notas_cols)
 
     print(f"Familia: {familia} · hojas: {[h for h in hojas if h not in excl]}")
     print(f"Clasificación: {json.dumps(stats, ensure_ascii=False)}")
