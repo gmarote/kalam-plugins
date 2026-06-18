@@ -24,7 +24,7 @@ CONFIG (JSON):
 """
 import sys, json, re
 import pandas as pd
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
 CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
@@ -41,21 +41,22 @@ NUMFMT = {"medicion": "#,##0.####", "precio_unitario": "#,##0.00", "importe": "#
 
 def formatear(ws, columnas):
     ws.freeze_panes = "A2"                 # cabecera siempre visible
-    ws.auto_filter.ref = ws.dimensions     # filtros en la cabecera
     ws.row_dimensions[1].height = 26
     bold = Font(bold=True)
-    wrap_top = Alignment(vertical="top", wrap_text=True)
+    gris = PatternFill("solid", fgColor="E6E6E6")   # gris suave para la cabecera
+    top = Alignment(vertical="top")
+    top_wrap = Alignment(vertical="top", wrap_text=True)
     for j, name in enumerate(columnas, start=1):
-        col = ws.cell(row=1, column=j)
-        col.font = bold
-        col.alignment = Alignment(vertical="center")
+        head = ws.cell(row=1, column=j)
+        head.font = bold
+        head.fill = gris
+        head.alignment = top
         ws.column_dimensions[get_column_letter(j)].width = ANCHOS.get(name, 16)
-        fmt, wrap = NUMFMT.get(name), name in WRAP
-        if fmt or wrap:
-            for i in range(2, ws.max_row + 1):
-                c = ws.cell(row=i, column=j)
-                if fmt: c.number_format = fmt
-                if wrap: c.alignment = wrap_top
+        fmt, align = NUMFMT.get(name), (top_wrap if name in WRAP else top)
+        for i in range(2, ws.max_row + 1):
+            c = ws.cell(row=i, column=j)
+            c.alignment = align            # todo alineado arriba
+            if fmt: c.number_format = fmt
 
 DEFAULT_COLS = {
     "codigo":  {"code": 0, "desc": 1, "unit": 2, "qty": 3, "price": 4},
