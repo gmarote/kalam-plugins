@@ -1,5 +1,5 @@
 ---
-name: hopper:normalizar
+name: normalizar
 description: >
   Convierte un Excel de mediciones (Mapa de Quantidades / presupuesto) de
   formato libre en una tabla estructurada estándar de una sola hoja. Úsala
