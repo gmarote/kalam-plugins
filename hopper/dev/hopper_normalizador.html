@@ -320,29 +320,25 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   function avisosDe(inf, medRows){
     var a=[], c=inf.cols||{}, np=medRows.length;
-    var mapeo="descripción en la columna "+colLetra(c.desc)+", unidad en la "+colLetra(c.unit)+" y cantidad en la "+colLetra(c.qty);
+    var mapeo="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
 
     if(np===0){
-      a.push("No salió ninguna partida de esta hoja. Si es una hoja de resumen, notas o portada, puedes ignorarla. "+
-             "Si debería traer mediciones, es que las columnas no están donde la app esperaba (buscó "+mapeo+").");
+      a.push("Sin partidas. Si es un resumen, notas o portada, ignórala; si esperabas mediciones, las columnas no cuadran (busqué "+mapeo+").");
       return a;  // sin partidas, el resto de avisos no aporta
     }
     if(inf.headerRow<0)
-      a.push("No encontré una fila de títulos clara (con palabras como «Designação», «Un.», «Quantidade»). "+
-             "Por eso asumí "+mapeo+", y saqué "+np+" partidas. Si cuadran, ignora el aviso; si no, hay que ajustar las columnas.");
+      a.push("Sin cabecera clara; asumí columnas: "+mapeo+". Salieron "+np+" partidas — revísalas.");
     else if(inf.headerScore<3)
-      a.push("La cabecera (fila "+(inf.headerRow+1)+") venía poco clara, así que asumí "+mapeo+". "+
-             "Saqué "+np+" partidas: conviene comprobar que esas columnas sean las correctas.");
+      a.push("Cabecera poco clara (fila "+(inf.headerRow+1)+"); asumí columnas: "+mapeo+". "+np+" partidas — comprueba las columnas.");
 
     var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
     var ul=Object.keys(us);
     if(ul.length)
-      a.push("En la columna de unidad (la "+colLetra(c.unit)+") aparecen valores raros ("+ul.slice(0,5).join(", ")+"). "+
-             "Puede que esa no sea la columna de unidades.");
+      a.push("Unidades raras en la columna "+colLetra(c.unit)+" ("+ul.slice(0,5).join(", ")+"); quizá no sea la de unidades.");
 
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
     if(z>0)
-      a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0. Puede ser normal (aún sin medir) o señal de que la columna de cantidad (la "+colLetra(c.qty)+") no es la correcta.");
+      a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0: puede ser normal, o que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
     return a;
   }
 
