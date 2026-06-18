@@ -68,7 +68,7 @@
       <div class="logo-mark">H</div>
       <div class="logo-txt">
         <span class="logo-name">Hopper</span>
-        <span class="logo-sub">Normalizador de mediciones · Capa 1</span>
+        <span class="logo-sub">Normalizador de mediciones</span>
       </div>
     </div>
     <div class="hero-tag">
@@ -91,8 +91,8 @@
     <span class="summary" id="summary"></span>
   </div>
 
-  <div id="avisos"></div>
-  <details class="panel hide" id="detalleWrap"><summary>Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
+  <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Avisos</summary><div id="avisos" style="margin-top:10px"></div></details>
+  <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
   <div id="preview"></div>
 </main>
 <script>/* xlsx.full.min.js · embebida para uso offline */
@@ -156,6 +156,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
 
   function cell(row,j){ return (j!=null && j<row.length) ? row[j] : null; }
+
+  // rejilla de la hoja alineada a A1: grid[i] == fila (i+1) real de Excel, col 0 == A.
+  // (sheet_to_json cuenta desde el rango !ref, que a veces empieza en A8 y desfasa la fila)
+  function gridDe(ws, XLSX){
+    if(!ws || !ws["!ref"]) return [];
+    var rng=XLSX.utils.decode_range(ws["!ref"]);
+    var ref=XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:rng.e.r, c:rng.e.c}});
+    return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:true,range:ref});
+  }
 
   // ---- localizar cabecera por contenido aproximado ----
   function findHeader(grid, col, markers){
@@ -331,7 +340,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     // 1) parsear todas las hojas
     nombres.forEach(function(hoja){
-      var grid=XLSX.utils.sheet_to_json(wb.Sheets[hoja],{header:1,raw:true,defval:null});
+      var grid=gridDe(wb.Sheets[hoja], XLSX);
       var det=autoDetect(grid), ov=overrides[hoja]||{};
       var familia=ov.familia||det.familia;
       var headerRow=ov.headerRow!=null?ov.headerRow:det.headerRow;
@@ -343,6 +352,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
       res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
       info[hoja].stats=stats;
+      info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows)};
     });
 
@@ -418,29 +428,31 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     $("summary").textContent = m.length+" mediciones · "+det.notas.length+" notas · "+
       usadas.length+" hojas usadas"+(dup.length?(" · "+dup.length+" descartadas por duplicado"):"")+" de "+hojas.length;
 
-    // ---- AVISOS: duplicados descartados + hojas dudosas ----
-    var avisos="";
+    // ---- AVISOS (panel plegable): duplicados descartados + hojas dudosas ----
+    var avisos="", n=0;
     dup.forEach(function(h){
-      avisos+='<div class="aviso"><b>♻ '+esc(h)+' — descartada</b><ul><li>'+esc(det.info[h].motivo)+'</li></ul></div>';
+      avisos+='<div class="aviso"><b>♻ '+esc(h)+' — descartada</b><ul><li>'+esc(det.info[h].motivo)+'</li></ul></div>'; n++;
     });
     usadas.forEach(function(h){
       var av=det.info[h].avisos||[];
-      if(av.length) avisos+='<div class="aviso"><b>⚠ '+esc(h)+'</b><ul>'+av.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>';
+      if(av.length){ avisos+='<div class="aviso"><b>⚠ '+esc(h)+'</b><ul>'+av.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
     });
-    $("avisos").innerHTML = m.length===0 ? "" :
-      (avisos || '<div class="ok">✓ Sin avisos: detección limpia y sin duplicados entre hojas.</div>');
+    $("avisosWrap").classList.toggle("hide", m.length===0);
+    $("avisosWrap").open = n>0;
+    $("avisosSum").textContent = n ? ("Avisos · "+n+" hoja"+(n>1?"s":"")+" a revisar") : "Avisos · todo correcto ✓";
+    $("avisos").innerHTML = n ? avisos : '<div class="ok">✓ Detección limpia y sin duplicados entre hojas.</div>';
 
-    // ---- DETALLE POR HOJA (tabla compacta, escala a muchas pestañas) ----
+    // ---- DETALLE POR HOJA (solo lo de ejecución: estado + nº de partidas) ----
     $("detalleWrap").classList.toggle("hide", hojas.length===0);
+    $("detalleSum").textContent = "Detalle por hoja · "+hojas.length+" hoja"+(hojas.length>1?"s":"");
     var rows=hojas.map(function(h){
-      var i=det.info[h], s=i.stats;
+      var i=det.info[h];
       var estado = i.excluida ? '<span class="e-excl" title="'+esc(i.motivo||"")+'">duplicada</span>'
                  : (i.avisos&&i.avisos.length) ? '<span class="e-warn">revisar</span>'
                  : '<span class="e-ok">ok</span>';
-      return "<tr><td>"+esc(h)+"</td><td>"+(i.excluida?"—":i.familia)+"</td><td>"+estado+"</td>"+
-             "<td class='num'>"+s.partida+"</td><td class='num'>"+s.parcial+"</td><td class='num'>"+s.titulo+"</td><td class='num'>"+s.nota+"</td><td class='num'>"+s.subtotal+"</td></tr>";
+      return "<tr><td>"+esc(h)+"</td><td>"+estado+"</td><td class='num'>"+(i.nMed||0)+"</td></tr>";
     }).join("");
-    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>hoja</th><th>familia</th><th>estado</th><th>partidas</th><th>parc.</th><th>tít.</th><th>notas</th><th>subt.</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>hoja</th><th>estado</th><th>partidas</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
     // ---- PREVIEW de la tabla canónica ----
     var NUM={medicion:1,precio_unitario:1,importe:1};

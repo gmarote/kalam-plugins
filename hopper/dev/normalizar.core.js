@@ -34,6 +34,15 @@
 
   function cell(row,j){ return (j!=null && j<row.length) ? row[j] : null; }
 
+  // rejilla de la hoja alineada a A1: grid[i] == fila (i+1) real de Excel, col 0 == A.
+  // (sheet_to_json cuenta desde el rango !ref, que a veces empieza en A8 y desfasa la fila)
+  function gridDe(ws, XLSX){
+    if(!ws || !ws["!ref"]) return [];
+    var rng=XLSX.utils.decode_range(ws["!ref"]);
+    var ref=XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:rng.e.r, c:rng.e.c}});
+    return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:true,range:ref});
+  }
+
   // ---- localizar cabecera por contenido aproximado ----
   function findHeader(grid, col, markers){
     for(var i=0;i<grid.length;i++){
@@ -208,7 +217,7 @@
 
     // 1) parsear todas las hojas
     nombres.forEach(function(hoja){
-      var grid=XLSX.utils.sheet_to_json(wb.Sheets[hoja],{header:1,raw:true,defval:null});
+      var grid=gridDe(wb.Sheets[hoja], XLSX);
       var det=autoDetect(grid), ov=overrides[hoja]||{};
       var familia=ov.familia||det.familia;
       var headerRow=ov.headerRow!=null?ov.headerRow:det.headerRow;
@@ -220,6 +229,7 @@
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
       res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
       info[hoja].stats=stats;
+      info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows)};
     });
 
