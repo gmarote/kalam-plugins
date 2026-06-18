@@ -5,42 +5,51 @@ en este orden. Es el contrato: no se renombran ni se reordenan sin acuerdo
 expreso con el cliente. Si un campo no existe en el Excel de origen, se deja
 **vacío** (no se inventa).
 
-| # | columna       | tipo   | qué es                                                                 |
-|---|---------------|--------|------------------------------------------------------------------------|
-| 1 | `archivo`     | texto  | Nombre del Excel de origen (trazabilidad).                             |
-| 2 | `hoja`        | texto  | Pestaña de origen (trazabilidad; útil si el capítulo = hoja).         |
-| 3 | `fila_origen` | entero | Nº de fila en el Excel de origen (1-based, como se ve en Excel).       |
-| 4 | `capitulo`    | texto  | Nivel 1 de la jerarquía (especialidad / capítulo).                    |
-| 5 | `subcapitulo` | texto  | Nivel 2.                                                               |
-| 6 | `seccion`     | texto  | Nivel 3 (más niveles intermedios sobrantes, concatenados con ` > `).  |
-| 7 | `codigo`      | texto  | Código/identificación de la partida tal cual viene (`1.1.2.1`, `E.1`). |
-| 8 | `partida`     | texto  | **Columna principal**: nombre/descripción de la unidad de obra.        |
-| 9 | `detalle`     | texto  | Texto del parcial (desglose de medición). Vacío en la fila de partida. |
-| 10| `unidad`      | texto  | m, m², m³, ml, Un, Vg, kg, mês…                                        |
-| 11| `medicion`    | número | Cantidad medida. Decimal con punto. Vacío si no la trae.               |
+| # | columna           | tipo   | qué es                                                                 |
+|---|-------------------|--------|------------------------------------------------------------------------|
+| 1 | `archivo`         | texto  | Nombre del Excel de origen (trazabilidad).                            |
+| 2 | `hoja`            | texto  | Pestaña de origen (trazabilidad; útil si el capítulo = hoja).        |
+| 3 | `fila_origen`     | entero | Nº de fila en el Excel de origen (1-based, como se ve en Excel).      |
+| 4 | `capitulo`        | texto  | Nivel 1 de la jerarquía (especialidad / capítulo).                   |
+| 5 | `subcapitulo`     | texto  | Nivel 2.                                                              |
+| 6 | `seccion`         | texto  | Nivel 3.                                                              |
+| 7 | `ruta`            | texto  | Camino jerárquico **completo** de títulos (` > `), a cualquier profundidad. |
+| 8 | `codigo`          | texto  | Código/identificación de la partida tal cual viene (`1.1.2.1`, `E.1`). |
+| 9 | `partida`         | texto  | **Columna principal**: nombre/descripción de la unidad de obra.       |
+| 10| `detalle`         | texto  | Texto del parcial (desglose de medición). Vacío en la fila de partida.|
+| 11| `unidad`          | texto  | m, m², m³, ml, Un, Vg, kg, mês…                                       |
+| 12| `medicion`        | número | Cantidad medida. Decimal con punto. Vacío si no la trae.             |
+| 13| `precio_unitario` | número | Precio unitario. **Suele venir vacío** (MQT para licitar).           |
+| 14| `importe`         | número | `medicion × precio_unitario` si ambos existen; si no, vacío.         |
 
-> Cambios respecto a v1: se elimina `precio_unitario` e `importe` (un MQT para
-> licitar no los trae), se elimina `nivel` (la jerarquía pasa a columnas con
-> nombre), se renombra `unidad_obra` → `partida` y `unidad_medida` → `unidad`, y
-> se añade delante el bloque de trazabilidad `archivo` / `hoja` / `fila_origen`.
+> Cambios respecto a v1: se elimina `nivel` (la jerarquía pasa a columnas con
+> nombre `capitulo`/`subcapitulo`/`seccion` más `ruta` completa); se renombra
+> `unidad_obra` → `partida`, `unidad_medida` → `unidad` y `cod_partida` →
+> `codigo`; se añade delante el bloque de trazabilidad `archivo` / `hoja` /
+> `fila_origen`, y se añade `ruta`. `precio_unitario` e `importe` se **conservan**
+> (vienen normalmente vacíos en un MQT para licitar, pero se reserva el hueco
+> para el precio que ponga el contratista).
 
-## Jerarquía: 4 niveles fijos con nombre
+## Jerarquía: 3 niveles con nombre + ruta completa
 
-La jerarquía se aplana **siempre** a cuatro niveles: `capitulo` › `subcapitulo`
-› `seccion` › `partida`. La regla de mapeo es fija:
+La jerarquía se expone en cuatro columnas. Las tres primeras son **buckets fijos
+para filtrar**; `ruta` es la cadena íntegra para no perder profundidad:
 
-- `capitulo`  = título del nivel 1.
+- `capitulo`    = título del nivel 1.
 - `subcapitulo` = título del nivel 2.
-- `seccion`   = título del nivel 3. Si el código baja más (nivel 4, 5…), los
-  títulos intermedios sobrantes se **concatenan en `seccion`** con ` > `.
-- `partida`   = la fila que trae **unidad + medición** (la hoja de medición).
+- `seccion`     = título del nivel 3.
+- `ruta`        = todos los títulos ancestros de la partida, unidos con ` > `, a
+  **cualquier** profundidad (nivel 1, 2, 3, 4, 5…). Es lossless: si el código
+  baja más allá del nivel 3, el detalle no se pierde —vive aquí.
+- `partida`     = la fila que trae **unidad + medición** (la hoja de medición).
 
-Ejemplo con código `2.1.2.1.1`:
+Ejemplo con código `2.1.2.1.1` (5 niveles):
 
 ```
 capitulo     = título del 2
 subcapitulo  = título del 2.1
-seccion      = título del 2.1.2  (y, si aplica, " > " + título del 2.1.2.1)
+seccion      = título del 2.1.2
+ruta         = "título 2 > título 2.1 > título 2.1.2 > título 2.1.2.1"
 codigo       = 2.1.2.1.1
 partida      = descripción del ítem
 ```
@@ -75,20 +84,21 @@ parciales son la misma cantidad).
 - **`codigo`**: se conserva literal. Si el origen no trae código útil (p. ej.
   solo el prefijo del capítulo repetido, o un `.`), se deja **vacío** — la fila
   no se pierde: se emite igualmente como partida/parcial colgando de los títulos
-  vigentes (`capitulo`/`subcapitulo`/`seccion`).
+  vigentes (`capitulo`/`subcapitulo`/`seccion`/`ruta`).
 
 ## Qué NO va al esquema (se descarta o se registra aparte)
 
 - Filas de **membrete** (Cliente / Projeto / Local / fecha).
 - **Notas** y condiciones generales (texto sin medición, p. ej. `CG.xx`,
-  `Nota:…`). Se vuelcan a una hoja secundaria `Notas` si el cliente las quiere
-  conservar, nunca mezcladas con las mediciones.
+  `Nota:…`). Se vuelcan a una hoja secundaria `Notas` (con su `hoja` y
+  `fila_origen`) si el cliente las quiere conservar, nunca mezcladas con las
+  mediciones.
 - **Subtotales** y totales (`TOTAL …`, `SubTotal`).
 - Pestañas de **resumen** o **duplicadas** que el cliente marque como no-fuente.
 
 ## Importe desglosado por zonas (familia B, opcional)
 
-Algunos MQT reparten la medición en varias columnas por zona del edificio
-(p. ej. "Pisos 0 a 3", "Piso 4", "Arranjos Exteriores"). Cuando aparezca, y solo
-entonces, se añaden columnas extra `zona_<nombre>` **al final**, sin alterar las
-11 columnas canónicas.
+Algunos MQT reparten la medición/importe en varias columnas por zona del
+edificio (p. ej. "Pisos 0 a 3", "Piso 4", "Arranjos Exteriores"). Cuando
+aparezca, y solo entonces, se añaden columnas extra `zona_<nombre>` **al final**,
+sin alterar las 14 columnas canónicas.

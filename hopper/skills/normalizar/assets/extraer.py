@@ -25,8 +25,9 @@ CONFIG (JSON):
 import sys, json, re
 import pandas as pd
 
-CANON = ["archivo", "hoja", "capitulo", "subcapitulo", "cod_partida", "nivel",
-         "unidad_obra", "detalle", "unidad_medida", "medicion", "precio_unitario", "importe"]
+CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
+         "ruta", "codigo", "partida", "detalle", "unidad", "medicion",
+         "precio_unitario", "importe"]
 
 DEFAULT_COLS = {
     "codigo":  {"code": 0, "desc": 1, "unit": 2, "qty": 3, "price": 4},
@@ -79,7 +80,9 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
     hdr = find_header(grid, cols["code"], ["item", "art", "designa", "nº"])
     out, titles = [], {}
     start = hdr + 1 if hdr >= 0 else 0
-    for row in grid[start:]:
+    for i in range(start, len(grid)):
+        row = grid[i]
+        fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
         qty, price = to_num(g("qty")), to_num(g("price"))
@@ -89,15 +92,18 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
             stats["titulo"] += 1; titles = {1: desc}; continue
         if not is_struct_code(code):
             stats["nota" if desc else "vacia"] += 1
-            if desc: out.append(("__nota__", hoja, desc))
+            if desc: out.append(("__nota__", hoja, fila, desc))
             continue
         nivel = len(code.split("."))
         if qty is not None and unit:                          # partida (hoja de medición)
             stats["partida"] += 1
-            subs = " > ".join(titles[k] for k in sorted(titles) if 1 < k < nivel and titles.get(k))
-            out.append(rec(archivo=archivo, hoja=hoja, capitulo=titles.get(1, ""),
-                           subcapitulo=subs, cod_partida=code, nivel=nivel,
-                           unidad_obra=desc, unidad_medida=unit, medicion=qty,
+            ruta = " > ".join(titles[k] for k in sorted(titles) if k < nivel and titles.get(k))
+            out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
+                           capitulo=(titles.get(1, "") if nivel > 1 else ""),
+                           subcapitulo=(titles.get(2, "") if nivel > 2 else ""),
+                           seccion=(titles.get(3, "") if nivel > 3 else ""),
+                           ruta=ruta, codigo=code, partida=desc,
+                           unidad=unit, medicion=qty,
                            precio_unitario=("" if price is None else price)))
         else:                                                 # título
             stats["titulo"] += 1
@@ -114,7 +120,10 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
         d = txt(grid[hdr][cols["desc"]] if cols["desc"] < len(grid[hdr]) else "")
         capitulo = d or capitulo_hoja
     out, subcap, partida = [], "", None
-    for row in grid[(hdr + 1) if hdr >= 0 else 0:]:
+    start = (hdr + 1) if hdr >= 0 else 0
+    for i in range(start, len(grid)):
+        row = grid[i]
+        fila = i + 1                      # 1-based, como se ve en Excel
         g = lambda k: row[cols[k]] if cols[k] < len(row) else None
         code, desc, unit = txt(g("code")), txt(g("desc")), txt(g("unit"))
         qty, price = to_num(g("qty")), to_num(g("price"))
@@ -123,26 +132,27 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
             stats["vacia"] += 1; continue
         if re.match(r"(?i)^total\b", desc) and qty is None:
             stats["subtotal"] += 1; continue
+        ruta = " > ".join(x for x in (capitulo, subcap) if x)
         if code:
             if is_caps(desc) and qty is None:                 # título de subcapítulo
                 subcap, partida = desc, None; stats["titulo"] += 1; continue
             partida = {"code": code, "desc": desc}; stats["partida"] += 1
             if qty is not None:                               # partida simple
-                out.append(rec(archivo=archivo, hoja=hoja, capitulo=capitulo,
-                               subcapitulo=subcap, cod_partida=code, unidad_obra=desc,
-                               unidad_medida=unit, medicion=qty,
+                out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
+                               capitulo=capitulo, subcapitulo=subcap, ruta=ruta,
+                               codigo=code, partida=desc, unidad=unit, medicion=qty,
                                precio_unitario=("" if price is None else price)))
             continue
         if qty is not None:                                   # parcial
             stats["parcial"] += 1
             base = partida or {"code": "", "desc": ""}
-            nombre = f'{base["desc"]} — {desc}' if desc else base["desc"]
-            out.append(rec(archivo=archivo, hoja=hoja, capitulo=capitulo,
-                           subcapitulo=subcap, cod_partida=base["code"], unidad_obra=nombre,
-                           detalle=desc, unidad_medida=unit, medicion=qty,
+            out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
+                           capitulo=capitulo, subcapitulo=subcap, ruta=ruta,
+                           codigo=base["code"], partida=base["desc"],
+                           detalle=desc, unidad=unit, medicion=qty,
                            precio_unitario=("" if price is None else price)))
         elif desc:
-            stats["nota"] += 1; out.append(("__nota__", hoja, desc))
+            stats["nota"] += 1; out.append(("__nota__", hoja, fila, desc))
     return out
 
 # ---------- colapsar parciales (opcional) ----------
@@ -150,14 +160,13 @@ def colapsar(rows):
     agg, order = {}, []
     for r in rows:
         if isinstance(r, tuple): order.append(r); continue
-        key = (r["hoja"], r["capitulo"], r["subcapitulo"], r["cod_partida"],
-               r["unidad_obra"].split(" — ")[0], r["unidad_medida"])
+        key = (r["hoja"], r["capitulo"], r["subcapitulo"], r["seccion"],
+               r["codigo"], r["partida"], r["unidad"])
         if key in agg:
             agg[key]["medicion"] = round((agg[key]["medicion"] or 0) + (r["medicion"] or 0), 4)
             agg[key]["detalle"] = ""
-            agg[key]["unidad_obra"] = r["unidad_obra"].split(" — ")[0]
         else:
-            r = dict(r); r["unidad_obra"] = r["unidad_obra"].split(" — ")[0]
+            r = dict(r); r["detalle"] = ""
             agg[key] = r; order.append(key)
     out = []
     for k in order:
@@ -194,7 +203,7 @@ def main():
         rows = colapsar(rows)
 
     medic = [r for r in rows if not isinstance(r, tuple)]
-    notas = [{"hoja": r[1], "nota": r[2]} for r in rows if isinstance(r, tuple)]
+    notas = [{"hoja": r[1], "fila_origen": r[2], "nota": r[3]} for r in rows if isinstance(r, tuple)]
 
     with pd.ExcelWriter(dst, engine="openpyxl") as w:
         pd.DataFrame(medic, columns=CANON).to_excel(w, sheet_name="Mediciones", index=False)

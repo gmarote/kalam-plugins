@@ -29,8 +29,9 @@ el nivel (`1` → capítulo, `1.1` → subcapítulo, `1.1.2.1` → partida/sub-p
 - fila vacía → se descarta.
 
 **Reconstrucción**: se mantiene una pila de títulos por nivel; al emitir una
-partida, `capitulo` = título de nivel 1, `subcapitulo` = títulos intermedios
-unidos con ` > `, `cod_partida` = el código, `nivel` = nº de segmentos.
+partida, `capitulo` = título de nivel 1, `subcapitulo` = nivel 2, `seccion` =
+nivel 3, `ruta` = la cadena completa de títulos ancestros unida con ` > ` (a
+cualquier profundidad, sin perder nivel 4+), `codigo` = el código tal cual.
 
 **Casos reales en esta familia**: Palácio Mendia (`1.1.2.1`), Ferragial
 (`1.4.1.7`, cabecera multilínea), Rossio · MQT_Plengil (`E.1`, prefijo de letra).
@@ -61,13 +62,15 @@ las partidas.
   medición es una partida simple; si no, es **compuesta** y sus mediciones
   vienen debajo como parciales.
 - sin código + con unidad y medición → **parcial** de la partida vigente
-  (se cuelga de ella; su texto va a `detalle`).
+  (se cuelga de ella; `partida` = descripción de la madre repetida, su texto
+  propio va a `detalle`).
 - sin código + solo texto → **nota**.
 - `TOTAL …` sin medición → **subtotal** (se descarta).
 
 **Reconstrucción**: `capitulo` = nombre de la pestaña (o cabecera);
-`subcapitulo` = último título en mayúsculas; `unidad_obra` = descripción de la
-partida (más ` — detalle` si es un parcial).
+`subcapitulo` = último título en mayúsculas; `ruta` = `capitulo > subcapitulo`;
+`partida` = descripción de la partida (repetida en sus parciales, con el texto
+del parcial en `detalle`).
 
 **Caso real en esta familia**: Calçada da Memória (pestañas TRABP, ARQ, EST…),
 con importe desglosado por zonas en varias columnas.

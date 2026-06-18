@@ -11,9 +11,10 @@ de pestañas, una por capítulo, cada una con su maquetación, códigos y parcia
 — y gestionarlas a mano es inviable.
 
 Hopper convierte cualquiera de esos Excel en **una sola tabla estructurada**:
-columnas de identificación (capítulo, subcapítulo, código), una principal con el
-**nombre de la unidad de obra**, y columnas de **unidad de medida**, **medición**
-y **precio unitario**.
+trazabilidad (archivo, hoja, fila de origen), jerarquía con nombre (capítulo,
+subcapítulo, sección y ruta completa), código, una columna principal con el
+**nombre de la partida**, y columnas de **detalle**, **unidad**, **medición**,
+**precio unitario** e **importe**.
 
 ## Cómo funciona
 

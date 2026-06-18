@@ -42,7 +42,7 @@ diálogo, propuesta y confirmación.
 
 ## Las dos piezas de referencia
 
-- **`references/esquema-salida.md`** — el esquema canónico de salida (12
+- **`references/esquema-salida.md`** — el esquema canónico de salida (14
   columnas). Es el contrato; léelo antes de entregar.
 - **`references/familias-de-formato.md`** — las familias de formato
   (**código** / **formato**), su huella de detección y la receta de
@@ -94,9 +94,10 @@ defecto ya marcada (que el usuario confirme con un "sí" si está de acuerdo):
 3. **Parciales** (SIEMPRE preguntar). "Las partidas traen su desglose de
    medición (parciales). ¿Los conservo como filas de detalle (recomendado) o
    los colapso sumándolos en la partida?"
-4. **Identificación / código.** Si el código es pobre (un prefijo repetido
-   tipo `ARQ-`), ofrece generar un código secuencial `capitulo.orden`.
-   Si es rico (`1.1.2.1`, `E.1`), se conserva tal cual.
+4. **Identificación / código.** Si el código es rico (`1.1.2.1`, `E.1`), se
+   conserva tal cual. Si es pobre (un prefijo repetido tipo `ARQ-`, o un `.`),
+   `codigo` se deja **vacío** — no se inventa: la fila no se pierde, cuelga de
+   los títulos vigentes (`capitulo`/`subcapitulo`/`seccion`/`ruta`).
 5. **Importe por zonas** (si aparece desglosado en varias columnas). "El
    importe viene repartido por zonas (Pisos 0-3 / Piso 4 / Exteriores).
    ¿Lo sumo, o conservo cada zona como columna aparte?"
@@ -144,7 +145,7 @@ Nunca entregues sin reconciliar. Comprueba y **reporta** al usuario:
 - **Filas sin clasificar**: revisa el recuento de `nota` y `vacia` del extractor.
   Si hay muchas notas, mira una muestra: puede esconderse algún ítem con código
   no estándar (`a)`, `b)`) que habría que rescatar.
-- **Unidades anómalas**: lista las `unidad_medida` distintas; si aparece algo
+- **Unidades anómalas**: lista las `unidad` distintas; si aparece algo
   raro (texto largo en la columna de unidad), avisa: suele indicar un mapeo de
   columna mal puesto.
 - **Coherencia numérica**: si hay precios, comprueba que `medicion × precio =
