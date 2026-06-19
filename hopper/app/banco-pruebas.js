@@ -13,7 +13,7 @@ var fs=require("fs"), path=require("path");
 function cargarXLSX(){
   try { return require("xlsx"); } catch(e){}
   var html=fs.readFileSync(path.join(__dirname,"hopper_normalizador.html"),"utf8");
-  var i=html.indexOf("xlsx.full.min.js");
+  var i=html.indexOf("xlsx-js-style.min.js");
   var start=html.indexOf("*/", i)+2;
   var end=html.indexOf("</script>", start);
   var src=html.slice(start, end);
