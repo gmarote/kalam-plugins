@@ -356,10 +356,16 @@
     //    índice, portada, notas). Si el estimador SÍ ve mediciones (est>=5), NO se
     //    descarta: es señal de pérdida y se mantiene marcada (lo gestiona avisosDe).
     nombres.forEach(function(h){
-      var i=info[h];
-      if(!i.excluida && i.nMed===0 && i.estMedidas===0){
-        i.excluida=true; i.noFuente=true;
-        i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)";
+      var i=info[h]; if(i.excluida) return;
+      // (a) ni una fila con cantidad+unidad real
+      if(i.nMed===0 && i.estMedidas===0){
+        i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)"; return;
+      }
+      // (b) extrajo "partidas" pero el estimador no ve nada Y casi todo es cantidad 0
+      //     -> resumen/subtotales mal interpretados (p. ej. listado de capítulos)
+      if(i.estMedidas===0 && i.nMed>0){
+        var ms=data[h].medRows, z=0; for(var k=0;k<ms.length;k++){ if(ms[k].medicion===0||ms[k].medicion===""||ms[k].medicion==null) z++; }
+        if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
       }
     });
 
