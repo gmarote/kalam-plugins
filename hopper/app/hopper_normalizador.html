@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hopper · Normalizador de Mediciones</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E8590C'/%3E%3Ctext x='16' y='23' font-family='Arial' font-size='20' font-weight='bold' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
+<title>Hopper · Kalam</title>
 <style>
   :root{
     --accent:#E8590C;--accent-soft:#FCEDE3;--teal:#0E7C86;--slate:#334155;
@@ -70,6 +71,16 @@
   .capbar{flex:1;height:15px;background:var(--soft);border-radius:8px;overflow:hidden;min-width:90px}
   .capfill{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#F2935A);border-radius:8px;transition:width .5s ease}
   .capc{flex:0 0 60px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
+  .kpi{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
+  .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .kpi.accent .n{color:var(--accent)} .kpi.warn .n{color:var(--warn)}
+  .kpi,.capwrap{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  #status{margin:14px 0;font-size:13.5px;color:var(--slate);font-weight:600}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -92,6 +103,9 @@
     <div class="dz-sub">o haz clic para seleccionarlos · puedes cargar uno o varios, se combinan en una sola tabla · admite <b>.xlsx</b> y <b>.xls</b></div>
     <span class="dz-pill">🔒 Tus datos no salen de tu ordenador: el procesamiento es local</span>
   </label>
+
+  <div id="status" class="hide"></div>
+  <div id="kpis"></div>
 
   <div class="panel hide" id="archivosWrap">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
@@ -546,16 +560,19 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   ["dragleave","drop"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove("over");});});
   drop.addEventListener("drop",function(ev){ if(ev.dataTransfer.files.length) cargarVarios(ev.dataTransfer.files); });
   file.addEventListener("change",function(){ if(file.files.length) cargarVarios(file.files); file.value=""; });
-  $("reset").addEventListener("click",function(){ cargados=[]; merged=null; recalcular(); });
+  $("reset").addEventListener("click",function(){ cargados=[]; merged=null; procesando(false); recalcular(); });
+
+  function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
 
   function cargarVarios(fileList){
     var arr=Array.prototype.slice.call(fileList), pend=arr.length;
+    procesando(true, "Procesando "+arr.length+" fichero"+(arr.length>1?"s":"")+"…");
     arr.forEach(function(f){
       var rd=new FileReader();
       rd.onload=function(){
-        var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-        cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})});
-        if(--pend===0) recalcular();
+        try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
+          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }catch(e){}
+        if(--pend===0) setTimeout(function(){ recalcular(); procesando(false); }, 20);  // deja pintar el spinner
       };
       rd.readAsArrayBuffer(f);
     });
@@ -570,7 +587,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
       $("avisosWrap").classList.add("hide"); $("detalleWrap").classList.add("hide");
-      $("preview").innerHTML=""; return;
+      $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; return;
     }
     var m=merged.mediciones;
 
@@ -588,6 +605,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var dupF=merged.archivos.length-usados;
     $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
       usados+" fichero"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
+
+    // tarjetas KPI
+    var capset={}; m.forEach(function(r){ capset[(r.capitulo&&String(r.capitulo).trim())||"—"]=1; });
+    var nCap=Object.keys(capset).length;
+    var aRev=merged.hojas.filter(function(h){return !h.excluida && h.avisos.length;}).length;
+    function kpi(n,l,cls){ return '<div class="kpi'+(cls?" "+cls:"")+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+    $("kpis").innerHTML = m.length ? ('<div class="kpis">'+
+      kpi(m.length.toLocaleString("pt-PT"),"partidas","accent")+
+      kpi(usados,"ficheros")+kpi(nCap,"capítulos")+
+      kpi(aRev,"hojas a revisar",aRev?"warn":"")+'</div>') : "";
 
     // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
     // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
