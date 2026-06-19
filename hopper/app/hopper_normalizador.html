@@ -414,8 +414,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       a.push("Unidades raras en la columna "+colLetra(c.unit)+" ("+ul.slice(0,5).join(", ")+"); quizá no sea la de unidades.");
 
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0)
-      a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0: puede ser normal, o que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
+    if(z>0){
+      if(z>=np*0.5)   // la mayoría a 0 -> la columna de cantidad es sospechosa
+        a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
+      else            // unas pocas -> es normal, solo se informa (sin conclusión)
+        a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
+    }
     return a;
   }
 
