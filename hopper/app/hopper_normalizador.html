@@ -75,7 +75,7 @@
   .kpi{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
   .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
-  .kpi.accent .n{color:var(--accent)} .kpi.warn .n{color:var(--warn)}
+  .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   #status{margin:14px 0;font-size:13.5px;color:var(--slate);font-weight:600}
@@ -115,13 +115,13 @@
     <div id="archivos"></div>
   </div>
 
+  <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Avisos</summary><div id="avisos" style="margin-top:10px"></div></details>
+  <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
+
   <div class="toolbar hide" id="toolbar">
     <button class="primary" id="dl">⬇ Descargar Excel normalizado</button>
     <span class="summary" id="summary"></span>
   </div>
-
-  <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Avisos</summary><div id="avisos" style="margin-top:10px"></div></details>
-  <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
   <div id="preview"></div>
   <div id="resumen"></div>
 </main>
@@ -566,7 +566,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   function cargarVarios(fileList){
     var arr=Array.prototype.slice.call(fileList), pend=arr.length;
-    procesando(true, "Procesando "+arr.length+" fichero"+(arr.length>1?"s":"")+"…");
+    procesando(true, "Procesando "+arr.length+" archivo"+(arr.length>1?"s":"")+"…");
     arr.forEach(function(f){
       var rd=new FileReader();
       rd.onload=function(){
@@ -604,22 +604,23 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var usados=merged.archivos.filter(function(a){return !a.excluido;}).length;
     var dupF=merged.archivos.length-usados;
     $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
-      usados+" fichero"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
+      usados+" archivo"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
-    // tarjetas KPI
+    // tarjetas KPI (orden jerárquico: archivo › capítulo › partida › a revisar)
     var capset={}; m.forEach(function(r){ capset[(r.capitulo&&String(r.capitulo).trim())||"—"]=1; });
     var nCap=Object.keys(capset).length;
     var aRev=merged.hojas.filter(function(h){return !h.excluida && h.avisos.length;}).length;
-    function kpi(n,l,cls){ return '<div class="kpi'+(cls?" "+cls:"")+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+    function kpi(n,sing,plu,cls){ return '<div class="kpi'+(cls?" "+cls:"")+'"><div class="n">'+n.toLocaleString("pt-PT")+'</div><div class="l">'+(n===1?sing:plu)+'</div></div>'; }
     $("kpis").innerHTML = m.length ? ('<div class="kpis">'+
-      kpi(m.length.toLocaleString("pt-PT"),"partidas","accent")+
-      kpi(usados,"ficheros")+kpi(nCap,"capítulos")+
-      kpi(aRev,"hojas a revisar",aRev?"warn":"")+'</div>') : "";
+      kpi(usados,"archivo","archivos")+
+      kpi(nCap,"capítulo","capítulos")+
+      kpi(m.length,"partida","partidas")+
+      kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+'</div>') : "";
 
     // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
     // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
     var av="", n=0, noFuente=merged.hojas.filter(function(h){return h.excluida && h.noFuente;}).length;
-    merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — fichero descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
+    merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — archivo descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
     merged.hojas.forEach(function(h){
       if(h.excluida && !h.noFuente){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
       else if(!h.excluida && h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
