@@ -216,6 +216,23 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function esUnidad(s){ s=String(s).trim(); return UNID.test(s) || (s.length<=4 && /^[A-Za-zºª²³]+\.?$/.test(s)); }
   function ncols(grid){ var n=0; for(var i=0;i<grid.length;i++) if(grid[i]&&grid[i].length>n) n=grid[i].length; return n; }
 
+  // estimación INDEPENDIENTE del mapeo: nº de filas del original que "parecen" una
+  // medición (tienen un número > 0 y una unidad real en algún sitio). Sirve para
+  // reconciliar: si emitimos muchas menos partidas que esto, hemos perdido datos.
+  function estimaMedidas(grid, start){
+    var est=0;
+    for(var r=start;r<grid.length;r++){
+      var rw=grid[r]; if(!rw) continue; var hasNum=false, hasUnit=false;
+      for(var k=0;k<rw.length;k++){
+        var s=txt(cell(rw,k)); if(!s) continue;
+        var nu=toNum(s); if(nu!==null && nu>0) hasNum=true;
+        if(UNID.test(s)) hasUnit=true;
+        if(hasNum&&hasUnit){ est++; break; }
+      }
+    }
+    return est;
+  }
+
   // mapeo por etiquetas de cabecera (respaldo cuando el contenido no decide)
   function labelCols(grid, headerRow){
     var cols={}, header = headerRow>=0?grid[headerRow]:[];
@@ -358,13 +375,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     return s;
   }
   function avisosDe(inf, medRows){
-    var a=[], c=inf.cols||{}, np=medRows.length;
+    var a=[], c=inf.cols||{}, np=medRows.length, est=inf.estMedidas||0;
     var mapeo="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
 
     if(np===0){
-      a.push("Sin partidas. Si es un resumen, notas o portada, ignórala; si esperabas mediciones, las columnas no cuadran (busqué "+mapeo+").");
+      if(est>=5) a.push("¡Ojo! El original tiene ~"+est+" filas con pinta de medición pero no se extrajo ninguna: el mapeo de columnas está mal (busqué "+mapeo+"). Revísalo.");
+      else a.push("Sin partidas. Si es un resumen, notas o portada, ignórala; si esperabas mediciones, las columnas no cuadran (busqué "+mapeo+").");
       return a;  // sin partidas, el resto de avisos no aporta
     }
+    // RECONCILIACIÓN: ¿hemos perdido mediciones respecto al original?
+    if(est>=5 && np < est*0.7)
+      a.push("Posible pérdida: el original tiene ~"+est+" filas con pinta de medición y solo se extrajeron "+np+". Revisa el mapeo (sobre todo la columna de cantidad).");
+
     if(inf.headerRow<0)
       a.push("Sin cabecera clara; asumí columnas: "+mapeo+". Salieron "+np+" partidas — revísalas.");
     else if(inf.headerScore<3)
@@ -411,7 +433,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var headerRow=ov.headerRow!=null?ov.headerRow:det.headerRow;
       var cols=ov.cols||det.cols;
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
-                  filas:grid.length,excluida:false,motivo:""};
+                  filas:grid.length,excluida:false,motivo:"",
+                  estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
       var stats=nuevoStats(), res, medRows=[], notasRows=[];
       if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
       else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
