@@ -345,7 +345,20 @@
       }
     });
 
-    // 3) salida desde las hojas no descartadas + avisos
+    // 3) SEGUNDA CAPA: descartar hojas que objetivamente no tienen mediciones.
+    //    Criterio (sin humano): 0 partidas extraídas Y el estimador independiente
+    //    apenas ve filas con cantidad+unidad -> no es hoja de medición (resumen,
+    //    índice, portada, notas). Si el estimador SÍ ve mediciones (est>=5), NO se
+    //    descarta: es señal de pérdida y se mantiene marcada (lo gestiona avisosDe).
+    nombres.forEach(function(h){
+      var i=info[h];
+      if(!i.excluida && i.nMed===0 && i.estMedidas===0){
+        i.excluida=true; i.noFuente=true;
+        i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)";
+      }
+    });
+
+    // 4) salida desde las hojas no descartadas + avisos
     var medic=[], notas=[];
     nombres.forEach(function(h){
       var i=info[h];
@@ -382,7 +395,7 @@
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
-                    motivo:inf.motivo,avisos:inf.avisos||[]});
+                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
       });
     });
     return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };

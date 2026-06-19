@@ -477,7 +477,20 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       }
     });
 
-    // 3) salida desde las hojas no descartadas + avisos
+    // 3) SEGUNDA CAPA: descartar hojas que objetivamente no tienen mediciones.
+    //    Criterio (sin humano): 0 partidas extraídas Y el estimador independiente
+    //    apenas ve filas con cantidad+unidad -> no es hoja de medición (resumen,
+    //    índice, portada, notas). Si el estimador SÍ ve mediciones (est>=5), NO se
+    //    descarta: es señal de pérdida y se mantiene marcada (lo gestiona avisosDe).
+    nombres.forEach(function(h){
+      var i=info[h];
+      if(!i.excluida && i.nMed===0 && i.estMedidas===0){
+        i.excluida=true; i.noFuente=true;
+        i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)";
+      }
+    });
+
+    // 4) salida desde las hojas no descartadas + avisos
     var medic=[], notas=[];
     nombres.forEach(function(h){
       var i=info[h];
@@ -514,7 +527,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
-                    motivo:inf.motivo,avisos:inf.avisos||[]});
+                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
       });
     });
     return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };
@@ -585,23 +598,26 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
       usados+" fichero"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
-    // avisos (plegable): duplicados de fichero + hojas dudosas
-    var av="", n=0;
-    merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — descartado</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
+    // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
+    // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
+    var av="", n=0, noFuente=merged.hojas.filter(function(h){return h.excluida && h.noFuente;}).length;
+    merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — fichero descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
     merged.hojas.forEach(function(h){
-      if(h.excluida){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja descartada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
-      else if(h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
+      if(h.excluida && !h.noFuente){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
+      else if(!h.excluida && h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
     });
+    if(noFuente) av+='<div class="aviso" style="border-color:var(--line);background:var(--soft)"><b>🚫 '+noFuente+' hoja'+(noFuente>1?"s":"")+' descartada'+(noFuente>1?"s":"")+'</b> por no contener mediciones (resúmenes, índices, portadas…). Ver «Detalle por hoja».</div>';
     $("avisosWrap").classList.toggle("hide", m.length===0);
     $("avisosWrap").open = n>0;
     $("avisosSum").textContent = n ? ("Avisos · "+n+" a revisar") : "Avisos · todo correcto ✓";
-    $("avisos").innerHTML = n ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
+    $("avisos").innerHTML = (n||noFuente) ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
 
     // detalle por hoja (plegable): archivo · hoja · estado · partidas
     $("detalleWrap").classList.toggle("hide", merged.hojas.length===0);
     $("detalleSum").textContent = "Detalle por hoja · "+merged.hojas.length;
     var rows=merged.hojas.map(function(h){
-      var estado = h.excluida ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">duplicada</span>'
+      var estado = (h.excluida && h.noFuente) ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">no-fuente</span>'
+                 : h.excluida ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">duplicada</span>'
                  : (h.avisos.length) ? '<span class="e-warn">revisar</span>' : '<span class="e-ok">ok</span>';
       return "<tr><td>"+esc(h.archivo)+"</td><td>"+esc(h.hoja)+"</td><td>"+estado+"</td><td class='num'>"+h.nMed+"</td></tr>";
     }).join("");
