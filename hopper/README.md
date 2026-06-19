@@ -16,7 +16,26 @@ subcapítulo, sección y ruta completa), código, una columna principal con el
 **nombre de la partida**, y columnas de **detalle**, **unidad**, **medición**,
 **precio unitario** e **importe**.
 
-## Cómo funciona
+## Dos líneas: la app (producto) y el plugin (laboratorio)
+
+Hopper se desarrolla en dos piezas complementarias:
+
+- **`app/` — el producto.** Una aplicación **HTML autónoma** (sin IA y sin
+  servidor) que el cliente abre en su navegador, suelta sus Excel y obtiene la
+  tabla normalizada. Es el **objetivo final**. Su motor, **`app/normalizar.core.js`,
+  es la fuente de verdad** de la lógica de normalización.
+- **`skills/normalizar/` — el plugin (laboratorio + especificación).** El agente
+  conversacional de Claude. Aquí viven las **reglas en lenguaje neutro**
+  (`references/`, el contrato) donde se razona y valida, y un extractor de
+  referencia (`assets/extraer.py`). No es el entregable, pero es donde se diseñan
+  las reglas y la vía de **escalado con IA** para las maquetas irregulares que la
+  app marque como dudosas.
+
+Las reglas (`references/`) son **independientes del lenguaje** y valen para ambas.
+`extraer.py` (Python) queda como **oráculo de validación**; la lógica que se
+publica vive en `app/normalizar.core.js` (JS).
+
+## Cómo funciona (plugin)
 
 Es un agente conversacional (no un parser rígido). Inspecciona el Excel, deduce
 su **familia de formato**, propone el mapeo de columnas y la clasificación de
@@ -32,14 +51,19 @@ siguiente medición de ese mismo arquitecto entra casi sola.
 ```
 hopper/
 ├── .claude-plugin/plugin.json
-└── skills/
+├── app/                                  PRODUCTO — app HTML autónoma (sin IA)
+│   ├── hopper_normalizador.html          la app (SheetJS + motor + UI), todo dentro
+│   ├── normalizar.core.js                el motor de reglas (FUENTE DE VERDAD)
+│   ├── banco-pruebas.js                  arnés headless para validar con muchos ficheros
+│   └── README.md
+└── skills/                               LABORATORIO — plugin de Claude (IA)
     └── normalizar/
-        ├── SKILL.md                       guion conversacional del agente (7 fases)
-        ├── references/
-        │   ├── esquema-salida.md          esquema canónico de salida (contrato)
-        │   └── familias-de-formato.md     familias de formato + recetas de clasificación
+        ├── SKILL.md                      guion conversacional del agente (7 fases)
+        ├── references/                   reglas en lenguaje neutro (contrato compartido)
+        │   ├── esquema-salida.md         esquema canónico de salida
+        │   └── familias-de-formato.md    familias + reglas universales de clasificación
         └── assets/
-            └── extraer.py                  extractor determinista (familias código/formato)
+            └── extraer.py                extractor de referencia (oráculo de validación)
 ```
 
 ## La skill

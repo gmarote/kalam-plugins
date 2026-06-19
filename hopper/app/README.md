@@ -1,19 +1,21 @@
-# dev — Capa 1 sin IA (HTML standalone)
+# app — Hopper, normalizador de mediciones (producto)
 
-Zona de **desarrollo** de la Capa 1, donde se evoluciona la maqueta (lo estable
-se irá consolidando en el resto del plugin). Primera maqueta funcional.
+**El producto.** Aplicación HTML autónoma que normaliza un MQT **sin IA en tiempo
+de ejecución** y **sin servidor**: un único fichero con todo el código dentro. El
+cliente la abre en su navegador, suelta sus Excel y descarga la tabla normalizada;
+sus datos no salen del ordenador.
 
-Prueba de concepto de normalizar un MQT **sin IA en tiempo de ejecución** y **sin
-servidor**: un único HTML con todo el código dentro. Responde a la pregunta de si
-hace falta IA en la primera capa. **No hace falta** para los ficheros regulares:
-las "Reglas universales" de `../skills/normalizar/references/familias-de-formato.md`
-son heurísticas deterministas, portables a JavaScript.
+`normalizar.core.js` es la **fuente de verdad** de la lógica de normalización. Las
+reglas vienen de `../skills/normalizar/references/` (el contrato, en lenguaje
+neutro); `../skills/normalizar/assets/extraer.py` queda como oráculo de validación.
+Que esto funcione sin IA confirma que las "Reglas universales" son heurísticas
+deterministas: la primera capa no necesita IA para los ficheros regulares.
 
 ## Qué es
 
 - **`hopper_normalizador.html`** — standalone (~900 KB). Lleva embebidos:
   - **SheetJS** (`xlsx.full.min.js`) para leer `.xlsx`/`.xls` en el navegador.
-  - **`normalizar.core.js`** — el motor de reglas (port de `assets/extraer.py`).
+  - **`normalizar.core.js`** — el motor de reglas (la fuente de verdad).
   - una **UI 100% automática**: sueltas el fichero y sale el Excel. **Sin
     formularios de mapeo** (no escalan a un Excel de muchas pestañas). Revisa
     **todas** las hojas (no se descarta nada por nombre), muestra un **panel de
@@ -58,7 +60,7 @@ Falsos negativos conocidos (lo que aún hay que endurecer):
 El HTML es: carcasa + `<script>` de SheetJS + `<script>` de `normalizar.core.js`
 + `<script>` de la UI. Para regenerarlo basta concatenar esas piezas (la librería
 SheetJS embebida se tomó de un build offline). El motor (`normalizar.core.js`) es
-la fuente de verdad y debe mantenerse en paridad con `assets/extraer.py`.
+la **fuente de verdad**; al cambiar una regla, se toca aquí.
 
 ## Limitaciones (es una maqueta en desarrollo)
 
@@ -73,4 +75,5 @@ la fuente de verdad y debe mantenerse en paridad con `assets/extraer.py`.
 2. Endurecer la **auto-detección** y los **avisos** (cazar los falsos negativos:
    maquetas ricas tipo ARQ, jerarquía formato incompleta).
 3. Ampliar el **corpus** y medir el auto-éxito con `banco-pruebas.js`.
-4. Mantener `normalizar.core.js` en **paridad** con `assets/extraer.py`.
+4. Las reglas se desarrollan aquí (`normalizar.core.js`); `assets/extraer.py`
+   se actualiza solo cuando se quiera revalidar (oráculo), no en lockstep.

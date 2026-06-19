@@ -2,6 +2,10 @@
 """
 Extractor determinista de mediciones (MQT) -> tabla canónica de una sola hoja.
 
+NOTA: la lógica que se publica vive en `app/normalizar.core.js` (JS), que es la
+fuente de verdad. Este script es el extractor de referencia / oráculo de
+validación del plugin; no se mantiene en lockstep con el JS.
+
 NO es un parser "mágico": recibe una CONFIG (familia, mapeo de columnas, hojas,
 trato de parciales…) que el agente acuerda con el cliente, y aplica esa receta
 de forma reproducible. La IA decide la ESTRUCTURA; este script extrae las
