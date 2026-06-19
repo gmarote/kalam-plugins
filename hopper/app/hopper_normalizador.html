@@ -392,33 +392,34 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   }
   function avisosDe(inf, medRows){
     var a=[], c=inf.cols||{}, np=medRows.length, est=inf.estMedidas||0;
-    var mapeo="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
+    var cols="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
 
     if(np===0){
-      if(est>=5) a.push("¡Ojo! El original tiene ~"+est+" filas con pinta de medición pero no se extrajo ninguna: el mapeo de columnas está mal (busqué "+mapeo+"). Revísalo.");
-      else a.push("Sin partidas. Si es un resumen, notas o portada, ignórala; si esperabas mediciones, las columnas no cuadran (busqué "+mapeo+").");
+      if(est>=5) a.push("El original aparenta ~"+est+" mediciones pero no se extrajo ninguna: el mapeo de columnas no cuadra (asumí "+cols+"). Revísalo.");
+      else a.push("Sin partidas extraídas y apenas "+est+" fila"+(est===1?"":"s")+" con pinta de medición: probablemente no es una hoja de medición. Si esperabas datos, revisa las columnas.");
       return a;  // sin partidas, el resto de avisos no aporta
     }
-    // RECONCILIACIÓN: ¿hemos perdido mediciones respecto al original?
+
+    // 1) Reconciliación: ¿hemos perdido mediciones respecto al original?
     if(est>=5 && np < est*0.7)
-      a.push("Posible pérdida: el original tiene ~"+est+" filas con pinta de medición y solo se extrajeron "+np+". Revisa el mapeo (sobre todo la columna de cantidad).");
+      a.push("Posible pérdida: el original aparenta ~"+est+" mediciones y solo se extrajeron "+np+". Revisa el mapeo (sobre todo la columna de cantidad).");
+    // 2) Mapeo poco seguro: solo si además quedó incompleto (en extracciones completas no molesta)
+    else if((inf.headerRow<0 || inf.headerScore<3) && est>0 && np<est)
+      a.push("Mapeo poco seguro (cabecera "+(inf.headerRow<0?"no localizada":"poco clara")+"); asumí "+cols+". Si las partidas no cuadran, ajusta las columnas.");
 
-    if(inf.headerRow<0)
-      a.push("Sin cabecera clara; asumí columnas: "+mapeo+". Salieron "+np+" partidas — revísalas.");
-    else if(inf.headerScore<3)
-      a.push("Cabecera poco clara (fila "+(inf.headerRow+1)+"); asumí columnas: "+mapeo+". "+np+" partidas — comprueba las columnas.");
-
-    var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
+    // 3) Unidades raras (proporcional: solo concluye si afecta a muchas filas)
+    var us={}, nU=0; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)){us[u]=1;nU++;} });
     var ul=Object.keys(us);
-    if(ul.length)
-      a.push("Unidades raras en la columna "+colLetra(c.unit)+" ("+ul.slice(0,5).join(", ")+"); quizá no sea la de unidades.");
+    if(ul.length){
+      if(nU>=np*0.5) a.push(nU+" de "+np+" partidas con unidad rara ("+ul.slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
+      else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
+    }
 
+    // 4) Cantidad 0 (proporcional)
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
     if(z>0){
-      if(z>=np*0.5)   // la mayoría a 0 -> la columna de cantidad es sospechosa
-        a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
-      else            // unas pocas -> es normal, solo se informa (sin conclusión)
-        a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
+      if(z>=np*0.5) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
+      else a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
     }
     return a;
   }
