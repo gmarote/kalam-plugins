@@ -73,11 +73,17 @@
   }
   // ¿el valor es un código con punto? (1.1, 2.1.1, E.1)
   function esCodigoPunteado(s){ return isStructCode(s) && s.indexOf(".")>=0; }
-  // máximo nº de "hermanos": hijos distintos colgando del mismo padre (1.1,1.2,…,1.11 -> 11)
-  function maxHermanos(codes){
+  // máximo nº de "hermanos": hijos distintos del mismo padre (1.1,1.2,…,1.11 -> 11).
+  // Para 2 niveles exige que el PADRE exista como entero suelto en la columna (1, 2…),
+  // así una columna de cantidades decimales (2.5, 2.7…) no se confunde con código.
+  function maxHermanos(codes, intset){
     var g={}, mx=0;
     for(var i=0;i<codes.length;i++){ var p=codes[i].lastIndexOf("."); if(p<0) continue;
-      var pre=codes[i].slice(0,p); g[pre]=(g[pre]||0)+1; if(g[pre]>mx) mx=g[pre]; }
+      var pre=codes[i].slice(0,p); g[pre]=(g[pre]||0)+1; }
+    for(var k in g){
+      var vale = k.indexOf(".")>=0 || (intset&&intset[k]);   // hijo de padre dotado, o padre entero presente
+      if(vale && g[k]>mx) mx=g[k];
+    }
     return mx;
   }
   var UNID=/^(m|m2|m3|m²|m³|ml|cm|mm|km|kg|kgs|ton|t|un|u|und|uni|unid|vg|cj|conj|pç|pc|pcs|lote|h|hr|hrs|dia|dias|mes|mês|gl|l|lt|saco|saca|fg|ud|uds|par)\.?$/i;
@@ -118,12 +124,13 @@
     var headerRow=best, start=best>=0?best+1:0, N=ncols(grid);
 
     // 2) métricas por columna sobre los datos
-    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{}};
+    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{},intset:{}};
     var seen=0;
     for(var r=start;r<grid.length && seen<400;r++){
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
+        if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
         if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
           if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
         var nu=toNum(s);
@@ -135,9 +142,15 @@
     }
     // puntuación de "columna de código": jerarquía real (3+ niveles, prefijo de letra o muchos hermanos)
     for(var q=0;q<N;q++){
-      var codes=Object.keys(met[q].codeset); met[q].nCodes=codes.length; met[q].herm=maxHermanos(codes);
+      var codes=Object.keys(met[q].codeset); met[q].nCodes=codes.length; met[q].herm=maxHermanos(codes, met[q].intset);
       met[q].esCodigo = codes.length>=3 && (met[q].segMax>=3 || met[q].letras>=2 || met[q].herm>=3);
     }
+
+    // etiquetas de cada columna (banda de cabecera: fila ±1, por si va a dos filas)
+    var lbl=[]; for(var L=0;L<N;L++){ var t=""; if(headerRow>=0) for(var rr=headerRow-1;rr<=headerRow+1;rr++) if(rr>=0&&rr<grid.length) t+=" "+txt(cell(grid[rr]||[],L)); lbl[L]=t.toLowerCase().replace(/\n/g," "); }
+    function esDim(s){ return /comp|larg|\balt|perim|perím|área|\barea|prof|parc|parte|dimens/.test(s); }   // columnas de dimensiones
+    function esQtyLbl(s){ return /\bqt\b|qtd|qte|quant|medi[cç]/.test(s); }                                  // cantidad (NO "total" a secas)
+    function esPriceLbl(s){ return /pre[cç]|custo|€|valor|p\.?\s?unit|or[cç]ament|import/.test(s); }          // precio/importe
 
     // 3) asignar roles por contenido (con respaldo de etiquetas/posición)
     var used={}, cols={}, lab=labelCols(grid, headerRow);
@@ -148,8 +161,11 @@
     pick("code", function(m){ return m.esCodigo ? m.nCodes : 0; });            // jerarquía real
     pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo
     pick("unit", function(m){ return m.unit; });                               // tokens de unidad
-    pick("qty",  function(m){ return m.numNZ; });                              // numérica con valores no-cero
-    pick("price",function(m){ return m.num; });                                // otra numérica (precio suele ir vacío)
+    pick("qty",  function(m,a){                                                // cantidad: QUANT/QT, NUNCA dimensiones/precio
+      if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0;
+      return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0);
+    });
+    pick("price",function(m,a){ return m.num + (esPriceLbl(lbl[a]) ? 1e7 : 0); });
     ["code","desc","unit","qty","price"].forEach(function(role,idx){
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
     });
