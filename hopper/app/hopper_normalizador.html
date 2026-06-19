@@ -673,18 +673,27 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length+' partidas</h2><div class="capwrap">'+barras+'</div>') : "";
   }
 
-  // estilo del Excel: cabecera gris + negrita, fuente 10, formato numérico, autofiltro
-  function estilar(ws, anchos, numCols){
-    ws["!cols"]=anchos; if(!ws["!ref"]) return;
-    ws["!autofilter"]={ref:ws["!ref"]};
+  // estilo del Excel: cabecera gris, fuente 10, una línea, zebra, autofiltro y
+  // anchos auto-ajustados al contenido con tope por columna.
+  function estilar(ws, caps, numCols){
+    if(!ws["!ref"]) return;
     var rng=XLSX.utils.decode_range(ws["!ref"]);
-    for(var c=rng.s.c;c<=rng.e.c;c++){ var h=XLSX.utils.encode_cell({r:0,c:c}); if(ws[h]) ws[h].s={fill:{patternType:"solid",fgColor:{rgb:"E6E6E6"}},font:{sz:10,bold:true}}; }
-    for(var r=1;r<=rng.e.r;r++) for(var c2=rng.s.c;c2<=rng.e.c;c2++){
-      var ad=XLSX.utils.encode_cell({r:r,c:c2}), cell=ws[ad]; if(!cell) continue;
-      var s={font:{sz:10},alignment:{vertical:"top"}};
-      if(numCols&&numCols[c2]) s.numFmt="#,##0.00";
-      cell.s=s;
+    ws["!autofilter"]={ref:ws["!ref"]};
+    var gris={patternType:"solid",fgColor:{rgb:"D9D9D9"}}, zeb={patternType:"solid",fgColor:{rgb:"F4F6F8"}}, W=[];
+    for(var c=rng.s.c;c<=rng.e.c;c++){
+      var mx=4, cap=(caps&&caps[c])||18, hd=ws[XLSX.utils.encode_cell({r:0,c:c})];
+      if(hd){ mx=Math.max(mx,String(hd.v).length); hd.s={fill:gris,font:{sz:10,bold:true},alignment:{vertical:"center"}}; }
+      for(var r=1;r<=rng.e.r;r++){
+        var ad=XLSX.utils.encode_cell({r:r,c:c}), cell=ws[ad]||(ws[ad]={t:"s",v:""});   // celda vacía -> zebra uniforme
+        var disp=String(cell.w!=null?cell.w:(cell.v==null?"":cell.v)); if(disp.length>mx) mx=disp.length;
+        var st={font:{sz:10},alignment:{vertical:"center",wrapText:false}};
+        if(r%2===0) st.fill=zeb;
+        if(numCols&&numCols[c]) st.numFmt="#,##0.00";
+        cell.s=st;
+      }
+      W.push({wch:Math.min(mx+2,cap)});
     }
+    ws["!cols"]=W;
   }
 
   // descarga del Excel acumulado
@@ -693,9 +702,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var C=merged.CANON;
     var aoa=[C].concat(merged.mediciones.map(function(r){return C.map(function(c){return r[c]===""?null:r[c];});}));
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    estilar(ws, [{wch:22},{wch:14},{wch:9},{wch:22},{wch:22},{wch:18},{wch:40},{wch:10},{wch:50},{wch:32},{wch:7},{wch:13},{wch:14},{wch:14}], {11:1,12:1,13:1});
+    estilar(ws, [24,16,9,24,24,22,34,11,50,34,8,13,14,14], {11:1,12:1,13:1});
     var out=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(out,ws,"Mediciones");
-    if(merged.notas.length){ var wn=XLSX.utils.json_to_sheet(merged.notas); estilar(wn, [{wch:16},{wch:9},{wch:90}], {}); XLSX.utils.book_append_sheet(out,wn,"Notas"); }
+    if(merged.notas.length){ var wn=XLSX.utils.json_to_sheet(merged.notas); estilar(wn, [16,9,80], {}); XLSX.utils.book_append_sheet(out,wn,"Notas"); }
     var nombre = cargados.length===1 ? cargados[0].archivo.replace(/\.(xlsx|xls)$/i,"") : "mediciones_acumuladas";
     XLSX.writeFile(out, nombre+"_normalizado.xlsx");
   });
