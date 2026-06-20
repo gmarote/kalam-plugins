@@ -321,6 +321,33 @@
     return a;
   }
 
+  // ---- CAPA 2: auto-auditoría. Con la tabla YA montada, busca incoherencias
+  //      internas que una pasada hacia delante no puede ver. No repara: señala
+  //      y devuelve una confianza 0..1 por hoja. ----
+  function auditar(medRows){
+    var n=medRows.length; if(!n) return {avisos:[], confianza:1};
+    var a=[], pen=0;
+    // A) capítulo ausente en (casi) toda la hoja -> cabecera de capítulo no detectada
+    var sinCap=0; for(var i=0;i<n;i++) if(!txt(medRows[i].capitulo)) sinCap++;
+    if(sinCap===n){ a.push("Ninguna partida tiene capítulo: no se detectó la cabecera de capítulo (o el capítulo es la propia hoja)."); pen=Math.max(pen,0.4); }
+    else if(sinCap/n>=0.5){ a.push(sinCap+" de "+n+" partidas sin capítulo: puede faltar una cabecera de capítulo."); pen=Math.max(pen,0.3); }
+    // B) misma descripción de partida repetida con el texto real en «detalle»
+    //    (síntoma de columna de descripción mal asignada o herencia errónea)
+    var freq={}, maxRep=0, maxKey="";
+    for(var j=0;j<n;j++){ var k=txt(medRows[j].partida); if(!k) continue; freq[k]=(freq[k]||0)+1; if(freq[k]>maxRep){ maxRep=freq[k]; maxKey=k; } }
+    if(maxRep>=4 && maxRep/n>=0.3){
+      var conDet=0; for(var p=0;p<n;p++) if(txt(medRows[p].partida)===maxKey && txt(medRows[p].detalle)) conDet++;
+      if(conDet>=Math.ceil(maxRep*0.7)){
+        a.push("La descripción «"+maxKey.slice(0,38)+(maxKey.length>38?"…":"")+"» se repite en "+maxRep+" partidas con el texto real en «detalle»: revisa si es un título colado como descripción.");
+        pen=Math.max(pen,0.45);
+      }
+    }
+    // C) muchas partidas sin código (señal leve: puede ser normal)
+    var sinCod=0; for(var q=0;q<n;q++) if(!txt(medRows[q].codigo)) sinCod++;
+    if(sinCod>=8 && sinCod/n>=0.6){ a.push(sinCod+" de "+n+" partidas sin código (códigos no reconocidos o ausentes)."); pen=Math.max(pen,0.15); }
+    return {avisos:a, confianza:Math.round((1-pen)*100)/100};
+  }
+
   // ---- huella de ítems de una hoja, para detectar duplicados entre hojas ----
   function clavesDe(medRows){
     var s={};
@@ -402,11 +429,13 @@
     var medic=[], notas=[], estruct=[];
     nombres.forEach(function(h){
       var i=info[h];
-      if(i.excluida){ i.avisos=[i.motivo]; return; }
+      if(i.excluida){ i.avisos=[i.motivo]; i.confianza=1; return; }
       medic=medic.concat(data[h].medRows);
       notas=notas.concat(data[h].notas);
       estruct=estruct.concat(data[h].est);
-      i.avisos=avisosDe(i, data[h].medRows);
+      var aud=auditar(data[h].medRows);                 // capa 2: auto-auditoría
+      i.avisos=avisosDe(i, data[h].medRows).concat(aud.avisos);
+      i.confianza=aud.confianza;
     });
     return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
   }
@@ -441,7 +470,8 @@
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
-                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
+                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[],
+                    confianza:(inf.confianza==null?1:inf.confianza)});
       });
     });
     return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
