@@ -5,8 +5,7 @@
   "use strict";
 
   var CANON = ["archivo","hoja","fila_origen","capitulo","subcapitulo","seccion",
-               "ruta","codigo","partida","detalle","unidad","medicion",
-               "precio_unitario","importe"];
+               "ruta","codigo","partida","detalle","unidad","medicion"];
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
   var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
@@ -29,9 +28,7 @@
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
-    Object.keys(o).forEach(function(k){ r[k]=o[k]; });
-    if(r.medicion!==""&&r.medicion!==null&&r.precio_unitario!==""&&r.precio_unitario!==null)
-      r.importe = Math.round(Number(r.medicion)*Number(r.precio_unitario)*100)/100;
+    CANON.forEach(function(c){ if(c in o) r[c]=o[c]; });   // solo columnas del esquema
     return r;
   }
 
@@ -199,7 +196,7 @@
               subcapitulo:(cur.nivel>2?(titles[2]||""):""),
               seccion:(cur.nivel>3?(titles[3]||""):""),
               ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
-              unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+              unidad:unit,medicion:qty}));
             if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
               if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
               curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
@@ -208,7 +205,7 @@
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
               capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
               ruta:rutaDe(titles,99),codigo:"",partida:desc,
-              unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+              unidad:unit,medicion:qty}));
             pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
           }
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
@@ -221,8 +218,7 @@
           capitulo:(nivel>1?(titles[1]||""):""),
           subcapitulo:(nivel>2?(titles[2]||""):""),
           seccion:(nivel>3?(titles[3]||""):""),
-          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty,
-          precio_unitario:(price===null?"":price)}));
+          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
@@ -261,7 +257,7 @@
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:(qty!==null?qty:"")});
         continue;
       }
@@ -269,7 +265,7 @@
         stats.parcial++; var base=partida||{code:"",desc:""};
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,capitulo:capitulo,
           subcapitulo:subcap,ruta:ruta,codigo:base.code,partida:base.desc,detalle:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
         if(curEst && curEst.nat==="Partida"){                  // parcial -> suma a su partida
           if(curEst.cantidad===""||curEst.cantidad==null) curEst.cantidad=qty;
           else curEst.cantidad=(Number(curEst.cantidad)||0)+qty;

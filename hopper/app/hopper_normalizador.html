@@ -191,8 +191,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   "use strict";
 
   var CANON = ["archivo","hoja","fila_origen","capitulo","subcapitulo","seccion",
-               "ruta","codigo","partida","detalle","unidad","medicion",
-               "precio_unitario","importe"];
+               "ruta","codigo","partida","detalle","unidad","medicion"];
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
   var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
@@ -215,9 +214,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
-    Object.keys(o).forEach(function(k){ r[k]=o[k]; });
-    if(r.medicion!==""&&r.medicion!==null&&r.precio_unitario!==""&&r.precio_unitario!==null)
-      r.importe = Math.round(Number(r.medicion)*Number(r.precio_unitario)*100)/100;
+    CANON.forEach(function(c){ if(c in o) r[c]=o[c]; });   // solo columnas del esquema
     return r;
   }
 
@@ -385,7 +382,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
               subcapitulo:(cur.nivel>2?(titles[2]||""):""),
               seccion:(cur.nivel>3?(titles[3]||""):""),
               ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
-              unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+              unidad:unit,medicion:qty}));
             if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
               if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
               curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
@@ -394,7 +391,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
               capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
               ruta:rutaDe(titles,99),codigo:"",partida:desc,
-              unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+              unidad:unit,medicion:qty}));
             pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
           }
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
@@ -407,8 +404,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
           capitulo:(nivel>1?(titles[1]||""):""),
           subcapitulo:(nivel>2?(titles[2]||""):""),
           seccion:(nivel>3?(titles[3]||""):""),
-          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty,
-          precio_unitario:(price===null?"":price)}));
+          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
@@ -447,7 +443,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:(qty!==null?qty:"")});
         continue;
       }
@@ -455,7 +451,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         stats.parcial++; var base=partida||{code:"",desc:""};
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,capitulo:capitulo,
           subcapitulo:subcap,ruta:ruta,codigo:base.code,partida:base.desc,detalle:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
         if(curEst && curEst.nat==="Partida"){                  // parcial -> suma a su partida
           if(curEst.cantidad===""||curEst.cantidad==null) curEst.cantidad=qty;
           else curEst.cantidad=(Number(curEst.cantidad)||0)+qty;
@@ -807,7 +803,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   // pinta la vista previa aplicando el filtro del buscador (busca en TODAS las
   // filas y columnas, sin acentos; muestra hasta 200, el resto va en el Excel).
-  var NUM={medicion:1,precio_unitario:1,importe:1};
+  var NUM={medicion:1};
   function pintarTabla(){
     if(!merged || !merged.mediciones.length){ $("preview").innerHTML=""; $("buscarInfo").textContent=""; return; }
     var total=merged.mediciones.length, q=norm(filtro).trim();
@@ -921,7 +917,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var C=merged.CANON;
     var aoa=[C].concat(merged.mediciones.map(function(r){return C.map(function(c){return r[c]===""?null:r[c];});}));
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    estilar(ws, [24,16,9,24,24,22,34,11,50,34,8,13,14,14], {11:1,12:1,13:1});
+    estilar(ws, [24,16,9,24,24,22,34,11,50,34,8,13], {11:1});
     var out=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(out,ws,"Mediciones");
     if(merged.notas.length){ var wn=XLSX.utils.json_to_sheet(merged.notas); estilar(wn, [16,9,80], {}); XLSX.utils.book_append_sheet(out,wn,"Notas"); }
     var nombre = cargados.length===1 ? cargados[0].archivo.replace(/\.(xlsx|xls)$/i,"") : "mediciones_acumuladas";
