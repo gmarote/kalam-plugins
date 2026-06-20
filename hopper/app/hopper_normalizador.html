@@ -63,6 +63,9 @@
   th,td{border-bottom:1px solid var(--line);border-right:1px solid #f3f4f6;padding:6px 9px;text-align:left;vertical-align:top;max-width:320px;overflow:hidden;text-overflow:ellipsis}
   thead th{position:sticky;top:0;background:var(--soft);font-weight:700;color:var(--slate);z-index:1}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
+  #preview tbody tr{transition:background .1s} #preview tbody tr:hover{background:var(--soft)}
+  #preview tr.expand td{white-space:normal;max-width:520px;vertical-align:top;background:var(--accent-soft)}
+  #preview tbody td{cursor:default}
   .dtab{white-space:normal} .dtab td,.dtab th{border-right:0}
   .muted{color:var(--muted)}.hide{display:none}
   .e-ok{color:var(--ok);font-weight:700}.e-warn{color:var(--warn);font-weight:700}.e-excl{color:var(--faint)}
@@ -670,6 +673,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     pintarTabla(); marcarCapActivo();
     $("preview").scrollIntoView({behavior:"smooth",block:"center"});
   });
+  // clic en una fila de la tabla -> la expande (wrap) para leer/copiar el texto completo
+  $("preview").addEventListener("click",function(ev){
+    if(window.getSelection && String(window.getSelection())) return;   // no togglear si se está seleccionando texto
+    var tr=ev.target.closest?ev.target.closest("tbody tr"):null; if(tr) tr.classList.toggle("expand");
+  });
 
   function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
 
@@ -813,7 +821,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       return "<tr>"+merged.CANON.map(function(c){
         var v=r[c], num=NUM[c]&&v!==""&&v!=null;
         var disp=num?Number(v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:(c==="medicion"?4:2)}):esc(v==null?"":v);
-        return '<td'+(num?' class="num"':'')+'>'+disp+'</td>';
+        return '<td'+(num?' class="num"':(disp.length>28?' title="'+disp+'"':''))+'>'+disp+'</td>';
       }).join("")+"</tr>";
     }).join("");
     $("preview").innerHTML = fil.length
