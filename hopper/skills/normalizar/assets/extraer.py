@@ -31,14 +31,18 @@ import pandas as pd
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
-CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
-         "ruta", "codigo", "partida", "detalle", "unidad", "medicion"]
+# v3: `division` es el nivel por encima del capítulo (edificio/bloque/fase).
+# Va vacío salvo que la obra lo traiga. La receta de relleno (combinar columna
+# de prefijo de código + detección por palabra clave) vive en normalizar.core.js;
+# aquí se reserva la columna del contrato (este oráculo aún no la rellena).
+CANON = ["archivo", "hoja", "fila_origen", "division", "capitulo", "subcapitulo",
+         "seccion", "ruta", "codigo", "partida", "detalle", "unidad", "medicion"]
 
 # ---------- formato de salida (presentación; nunca toca los datos) ----------
-ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "capitulo": 22,
-          "subcapitulo": 24, "seccion": 20, "ruta": 42, "codigo": 10,
-          "partida": 52, "detalle": 34, "unidad": 7, "medicion": 13,
-          "nota": 90}
+ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "division": 18,
+          "capitulo": 22, "subcapitulo": 24, "seccion": 20, "ruta": 42,
+          "codigo": 10, "partida": 52, "detalle": 34, "unidad": 7,
+          "medicion": 13, "nota": 90}
 WRAP = {"partida", "detalle", "ruta", "subcapitulo", "seccion", "nota"}
 # Formato PT/ES (punto de millares, coma decimal) forzado con locale pt-PT [$-816],
 # para que se vea igual sea cual sea el idioma del Excel del cliente.
