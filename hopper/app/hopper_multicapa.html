@@ -976,23 +976,40 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       for(var r=1;r<=rng.e.r;r++){
         var ad=XLSX.utils.encode_cell({r:r,c:c}), cell=ws[ad]||(ws[ad]={t:"s",v:""});
         var nat=(ws[XLSX.utils.encode_cell({r:r,c:1})]||{}).v;
+        var partida=(ws[XLSX.utils.encode_cell({r:r,c:3})]||{}).v;
+        var esTotal=/^TOTAL /.test(String(partida||""));
         var st={font:{sz:10},alignment:{vertical:"center",wrapText:false}};
         if(c===4) st.numFmt="#,##0.00";
         if(fillNat[nat]){ st.fill={patternType:"solid",fgColor:{rgb:fillNat[nat]}};
           st.font={sz:10,bold:true,color:{rgb:(nat==="Sección"?"15191E":"FFFFFF")}}; }
+        else if(esTotal){ st.fill={patternType:"solid",fgColor:{rgb:"D9D9D9"}}; st.font={sz:10,bold:true}; }
         cell.s=st;
       }
     }
     ws["!cols"]=W.map(function(w){return {wch:w};});
   }
+  // construye las filas de la hoja de costes intercalando las filas de TOTAL
+  // (SECCIÓN/SUBCAPÍTULO/CAPÍTULO) vacías en su sitio, para encajar el copy/paste
+  // en la plantilla de costes de Kalam (el sistema rellena el importe).
+  function filasCostes(estructura){
+    var rows=[], abierto={1:false,2:false,3:false};
+    var nivel={Capitulo:1,Subcapitulo:2,"Sección":3};
+    var etiqueta={1:"TOTAL CAPÍTULO",2:"TOTAL SUBCAPÍTULO",3:"TOTAL SECCIÓN"};
+    function cerrar(L){ for(var k=3;k>=L;k--){ if(abierto[k]){ rows.push(["","","",etiqueta[k],""]); abierto[k]=false; } } }
+    estructura.forEach(function(r){
+      if(r.nat==="__archivo__"){ cerrar(1); rows.push(["▼ "+r.partida,"","","",""]); return; }
+      var L=nivel[r.nat];
+      if(L){ cerrar(L); rows.push([r.codigo||"", r.nat||"", r.ud||"", r.partida||"", ""]); abierto[L]=true; }
+      else { var q=r.cantidad; if(typeof q==="number") q=Math.round(q*10000)/10000;
+        rows.push([r.codigo||"", r.nat||"", r.ud||"", r.partida||"", (q===""||q==null?null:q)]); }
+    });
+    cerrar(1);   // cierra los niveles que queden abiertos al final
+    return rows;
+  }
   $("dlcost").addEventListener("click",function(){
     if(!merged || !merged.estructura || !merged.estructura.length) return;
     var H=merged.COSTHEAD;
-    var aoa=[H].concat(merged.estructura.map(function(r){
-      if(r.nat==="__archivo__") return ["▼ "+r.partida,"","","",""];   // separador de fichero
-      var q=r.cantidad; if(typeof q==="number") q=Math.round(q*10000)/10000;   // limpia ruido de coma flotante
-      return [r.codigo||"", r.nat||"", r.ud||"", r.partida||"", (q===""||q==null?null:q)];
-    }));
+    var aoa=[H].concat(filasCostes(merged.estructura));
     var ws=XLSX.utils.aoa_to_sheet(aoa);
     estilarCostes(ws);
     var out=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(out,ws,"Hoja de costes");
