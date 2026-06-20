@@ -4,7 +4,7 @@
 (function (root) {
   "use strict";
 
-  var CANON = ["archivo","hoja","fila_origen","capitulo","subcapitulo","seccion",
+  var CANON = ["archivo","hoja","fila_origen","division","capitulo","subcapitulo","seccion",
                "ruta","codigo","partida","detalle","unidad","medicion"];
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
@@ -24,7 +24,7 @@
   function isCaps(s){ var letters=s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>2 && s===s.toUpperCase(); }
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
   function isStructCode(s){ return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0; }
-  function isLetterChapter(s){ return /^[A-Za-z]{1,4}\.?$/.test(s); }   // A, B, AB… con punto opcional (A., B.)
+  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
@@ -170,42 +170,80 @@
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
     });
 
+    // columna-prefijo de código: jerarquía partida en 2 columnas (p. ej. Bloco en col 0
+    // "A.", "A.1." y el ítem "1.1.1" en otra). Solo si a la izquierda del código hay
+    // códigos con letra inicial y algún nivel ("A.1.") — patrón inequívoco.
+    if(cols.code!=null){
+      var pre=-1, preN=0, deep=0;
+      for(var pc=0; pc<cols.code; pc++){
+        if(used[pc]) continue;
+        var cnt=0, dp=0;
+        for(var rr=start; rr<grid.length && rr<start+400; rr++){
+          var s2=txt(cell(grid[rr]||[],pc)).replace(/\s+/g,""); if(!s2) continue;
+          if(/^[A-Za-z]{1,4}\.?(\d+\.?)*$/.test(s2)){ cnt++; if(/^[A-Za-z]{1,4}\.\d/.test(s2)) dp++; }
+        }
+        if(cnt>preN){ preN=cnt; pre=pc; deep=dp; }
+      }
+      if(pre>=0 && preN>=3 && deep>=2){ cols.codePrefix=pre; used[pre]=1; }
+    }
+
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
   }
 
   // ---- familia CÓDIGO ----
+  // ---- nivel superior al capítulo: edificio / bloque / fase (cuando la obra lo trae) ----
+  function esDivision(s){ return /^\s*(bloco|bloque|edif[íi]cio|n[úu]cleo|corpo|torre)\b/i.test(String(s||"")); }
+  function divActiva(titles){ return (titles[1] && esDivision(titles[1])) ? 1 : 0; }   // 1 si el nivel 1 es una división
+  // columnas de jerarquía con nombre, desplazando uno si hay división por encima
+  function jer(titles, nivel){
+    var off=divActiva(titles);
+    return { division:(off?(titles[1]||""):""),
+             capitulo:(nivel>1+off?(titles[1+off]||""):""),
+             subcapitulo:(nivel>2+off?(titles[2+off]||""):""),
+             seccion:(nivel>3+off?(titles[3+off]||""):""),
+             ruta:rutaDe(titles,nivel) };
+  }
+  function natDe(titles, nivel){   // etiqueta Nat para la hoja de costes (con desplazamiento)
+    var off=divActiva(titles); if(nivel===1 && off) return "División";
+    var n=nivel-off; return n<=1?"Capitulo":n===2?"Subcapitulo":"Sección";
+  }
+  // normaliza un código (quita espacios, puntos finales, puntos dobles) y combina prefijo+código
+  function normCod(s){ return String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").replace(/\.{2,}/g,"."); }
+  function combinar(pref, code){ var a=normCod(pref), b=normCod(code); return b?(a?a+"."+b:b):a; }
+
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
-      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
+      if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
+      else if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
-        pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); continue; }
+        pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""}); continue; }
       if(!isStructCode(code)){
         if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
           if(cur){                                    // partida compuesta: hereda código y partida de arriba
+            var Jc=jer(titles,cur.nivel);
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-              capitulo:(cur.nivel>1?(titles[1]||""):""),
-              subcapitulo:(cur.nivel>2?(titles[2]||""):""),
-              seccion:(cur.nivel>3?(titles[3]||""):""),
-              ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
+              division:Jc.division,capitulo:Jc.capitulo,subcapitulo:Jc.subcapitulo,seccion:Jc.seccion,
+              ruta:Jc.ruta,codigo:cur.code,partida:cur.desc,detalle:desc,
               unidad:unit,medicion:qty}));
             if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
               if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
               curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
             } else pushEst({codigo:cur.code,nat:"Partida",ud:unit,partida:cur.desc,cantidad:qty});
           } else {                                    // sin partida previa: se emite igual sin código
+            var Jn=jer(titles,99);
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-              capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
-              ruta:rutaDe(titles,99),codigo:"",partida:desc,
+              division:Jn.division,capitulo:Jn.capitulo,subcapitulo:Jn.subcapitulo,seccion:Jn.seccion,
+              ruta:Jn.ruta,codigo:"",partida:desc,
               unidad:unit,medicion:qty}));
             pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
           }
@@ -215,18 +253,17 @@
       var nivel = code.split(".").length;
       if(qty!==null && unit){
         stats.partida++;
+        var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-          capitulo:(nivel>1?(titles[1]||""):""),
-          subcapitulo:(nivel>2?(titles[2]||""):""),
-          seccion:(nivel>3?(titles[3]||""):""),
-          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty}));
+          division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
+          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unit,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:(nivel===1?"Capitulo":nivel===2?"Subcapitulo":"Sección"),ud:"",partida:desc,cantidad:""});
+        pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
       }
     }
     return out;
@@ -246,7 +283,8 @@
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
-      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
+      if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
+      else if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
