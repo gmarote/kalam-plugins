@@ -100,10 +100,11 @@
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
   .dc-text{flex:1;min-width:0}
   @media(max-width:720px){ .dash{flex-wrap:wrap} }
-  .donut-leg{font-size:12px;color:var(--slate);display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-  .donut-leg .li{display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden}
-  .donut-leg .li .t{overflow:hidden;text-overflow:ellipsis}
-  .donut-leg .li .v{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate);padding-left:8px}
+  .dc-chart{flex:none}
+  .donut-leg{font-size:12px;color:var(--slate);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;row-gap:6px;min-width:0}
+  .donut-leg .li{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden}
+  .donut-leg .li .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .donut-leg .li .v{margin-left:auto;padding-left:8px;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
   .donut-leg .sw{width:11px;height:11px;border-radius:3px;flex:none}
   footer.pie{border-top:1px solid var(--line);background:var(--soft)}
   .pie-in{max-width:1280px;margin:0 auto;padding:18px 28px;text-align:right;font-size:13px;color:var(--faint)}
@@ -796,13 +797,13 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var pct = fuente.length ? Math.round(100*(fuente.length-perdida)/fuente.length) : 100, ok=(perdida===0);
     var sub = ok ? ('<b>0 pérdidas</b><br>'+m.length.toLocaleString("pt-PT")+' mediciones recuperadas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
                  : ('<b>'+perdida+' hoja'+(perdida>1?"s":"")+' a revisar</b><br>posible pérdida: revisa los avisos antes de usar');
-    var ring='<div class="dcard"><div>'+anilloSVG(pct,ok)+'</div><div><h3>Integridad de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
+    var ring='<div class="dcard"><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Integridad de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
-    var top=caps.slice(0,7), resto=caps.slice(7);
+    var top=caps.slice(0,9), resto=caps.slice(9);
     if(resto.length){ top.push(["+ "+resto.length+" capítulos más", resto.reduce(function(a,x){return a+x[1];},0)]); }
-    var donut='<div class="dcard"><div>'+donutSVG(top)+'</div><div class="dc-text"><h3>Distribución por capítulo</h3><div class="donut-leg">'+
+    var donut='<div class="dcard"><div class="dc-chart">'+donutSVG(top)+'</div><div class="dc-text"><h3>Distribución por capítulo</h3><div class="donut-leg">'+
       top.map(function(x,i){return '<span class="li"><span class="sw" style="background:'+PALETA[i%PALETA.length]+'"></span><span class="t" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="v">'+x[1]+'</span></span>';}).join("")+'</div></div></div>';
     $("dash").innerHTML = ring+donut;
     var rc=$("dash").querySelector("circle[data-off]");   // dispara la animación del trazo
