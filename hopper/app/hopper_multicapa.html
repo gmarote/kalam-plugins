@@ -408,7 +408,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     return vis ? seg : null;
   }
 
-  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg){
+  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -417,6 +417,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
       else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
       if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
+      if(stripCero){ var _z=code.replace(/(\.0+)+$/,""); if(_z && isStructCode(_z)) code=_z; }   // capa 3: convenio "1.0"=capítulo, "1.1.0"=subcapítulo -> quita el cero final
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
@@ -624,27 +625,26 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
                   filas:grid.length,excluida:false,motivo:"",
                   estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
-      function correr(strip){
-        var st=nuevoStats(), est=[], med=[], not=[];
-        var r=(familia==="codigo") ? parseCodigo(grid,cols,archivo,hoja,headerRow,st,est,strip)
+      function correr(o){
+        o=o||{}; var st=nuevoStats(), est=[], med=[], not=[];
+        var r=(familia==="codigo") ? parseCodigo(grid,cols,archivo,hoja,headerRow,st,est,o.seg,o.cero)
                                    : parseFormato(grid,cols,archivo,hoja,headerRow,hoja,st,est);
         r.forEach(function(x){ if(Array.isArray(x)) not.push({hoja:x[1],fila_origen:x[2],nota:x[3]}); else med.push(x); });
         return {stats:st,est:est,med:med,not:not};
       }
       var p0=correr(null), stats=p0.stats, medRows=p0.med, notasRows=p0.not, estRows=p0.est;
-      // CAPA 3: la señal de "jerarquía rota" de la capa 2 dispara la corrección.
-      // Si todos los códigos cuelgan de un primer segmento constante sin cabecera
-      // propia, se reintenta quitándolo; se queda solo si la confianza mejora.
+      // CAPA 3: la señal de "jerarquía rota" (capa 2) dispara la corrección. Se
+      // prueban varias recetas según la causa y se queda la que MÁS sube la
+      // confianza (y solo si la sube). Nunca empeora.
       if(familia==="codigo"){
         var aud0=auditar(medRows);
         if(aud0.rota>0){
-          var cp=prefijoConstante(medRows);
-          if(cp){ var p1=correr(cp);
-            if(auditar(p1.med).confianza > aud0.confianza){
-              stats=p1.stats; medRows=p1.med; notasRows=p1.not; estRows=p1.est;
-              info[hoja].capa3="nivel constante «"+cp+"» sin cabecera: eliminado (la jerarquía sube un nivel)";
-            }
-          }
+          var cp=prefijoConstante(medRows), hyps=[];
+          if(cp) hyps.push({o:{seg:cp}, msg:"nivel constante «"+cp+"» sin cabecera: eliminado (la jerarquía sube un nivel)"});
+          hyps.push({o:{cero:1}, msg:"códigos con «.0» de cabecera (1.0 = capítulo): cero final normalizado"});
+          var mejorConf=aud0.confianza, mejor=null;
+          hyps.forEach(function(hy){ var p=correr(hy.o); var cf=auditar(p.med).confianza; if(cf>mejorConf){ mejorConf=cf; mejor={p:p,msg:hy.msg}; } });
+          if(mejor){ stats=mejor.p.stats; medRows=mejor.p.med; notasRows=mejor.p.not; estRows=mejor.p.est; info[hoja].capa3=mejor.msg; }
         }
       }
       info[hoja].stats=stats;
