@@ -8,6 +8,9 @@
                "ruta","codigo","partida","detalle","unidad","medicion",
                "precio_unitario","importe"];
 
+  // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
+  var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
+
   function txt(v){ if(v===null||v===undefined) return ""; if(typeof v==="number"&&isNaN(v)) return ""; return String(v).trim(); }
 
   function toNum(v){
@@ -175,8 +178,9 @@
   }
 
   // ---- familia CÓDIGO ----
-  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats){
-    var out=[], titles={}, cur=null, start = headerRow>=0 ? headerRow+1 : 0;
+  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est){
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
@@ -184,7 +188,8 @@
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
-      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1}; continue; }
+      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+        pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); continue; }
       if(!isStructCode(code)){
         if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
@@ -195,11 +200,16 @@
               seccion:(cur.nivel>3?(titles[3]||""):""),
               ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
               unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+            if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
+              if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
+              curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
+            } else pushEst({codigo:cur.code,nat:"Partida",ud:unit,partida:cur.desc,cantidad:qty});
           } else {                                    // sin partida previa: se emite igual sin código
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
               capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
               ruta:rutaDe(titles,99),codigo:"",partida:desc,
               unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+            pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
           }
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
         continue;
@@ -214,10 +224,12 @@
           ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty,
           precio_unitario:(price===null?"":price)}));
         cur={code:code,desc:desc,nivel:nivel};
+        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
+        pushEst({codigo:code,nat:(nivel===1?"Capitulo":nivel===2?"Subcapitulo":"Sección"),ud:"",partida:desc,cantidad:""});
       }
     }
     return out;
@@ -228,9 +240,11 @@
   }
 
   // ---- familia FORMATO ----
-  function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats){
-    var capitulo = capituloHoja, out=[], subcap="", partida=null;
+  function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
+    var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); capitulo=d||capituloHoja; }
+    pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -242,11 +256,13 @@
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
-        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++; continue; }
+        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++;
+          pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); continue; }
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
           unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:(qty!==null?qty:"")});
         continue;
       }
       if(qty!==null){
@@ -254,6 +270,11 @@
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,capitulo:capitulo,
           subcapitulo:subcap,ruta:ruta,codigo:base.code,partida:base.desc,detalle:desc,
           unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+        if(curEst && curEst.nat==="Partida"){                  // parcial -> suma a su partida
+          if(curEst.cantidad===""||curEst.cantidad==null) curEst.cantidad=qty;
+          else curEst.cantidad=(Number(curEst.cantidad)||0)+qty;
+          if(!curEst.ud) curEst.ud=unit;
+        } else pushEst({codigo:base.code,nat:"Partida",ud:unit,partida:base.desc,cantidad:qty});
       } else if(desc){ stats.nota++; out.push(["__nota__",hoja,fila,desc]); }
     }
     return out;
@@ -334,13 +355,13 @@
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
                   filas:grid.length,excluida:false,motivo:"",
                   estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
-      var stats=nuevoStats(), res, medRows=[], notasRows=[];
-      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
-      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
+      var stats=nuevoStats(), res, medRows=[], notasRows=[], estRows=[];
+      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats,estRows);
+      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats,estRows);
       res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
-      data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows)};
+      data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
     });
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
@@ -380,15 +401,16 @@
     });
 
     // 4) salida desde las hojas no descartadas + avisos
-    var medic=[], notas=[];
+    var medic=[], notas=[], estruct=[];
     nombres.forEach(function(h){
       var i=info[h];
       if(i.excluida){ i.avisos=[i.motivo]; return; }
       medic=medic.concat(data[h].medRows);
       notas=notas.concat(data[h].notas);
+      estruct=estruct.concat(data[h].est);
       i.avisos=avisosDe(i, data[h].medRows);
     });
-    return { mediciones:medic, notas:notas, info:info, CANON:CANON };
+    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
@@ -408,21 +430,26 @@
         if(mayor && c>=0.8){ archivos[a].excluido=true; archivos[a].motivo="duplicado de «"+items[b].archivo+"» ("+Math.round(100*c)+"%)"; break; }
       }
     }
-    var medic=[], notas=[], hojas=[];
+    var usados=archivos.filter(function(a){return !a.excluido;}).length;
+    var medic=[], notas=[], hojas=[], estruct=[];
     items.forEach(function(it,i){
       if(archivos[i].excluido) return;
       medic=medic.concat(it.det.mediciones);
       notas=notas.concat(it.det.notas);
+      if(it.det.estructura && it.det.estructura.length){
+        if(usados>1) estruct.push({codigo:"",nat:"__archivo__",ud:"",partida:it.archivo,cantidad:""});
+        estruct=estruct.concat(it.det.estructura);
+      }
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
                     noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
       });
     });
-    return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };
+    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
-  var API={CANON:CANON,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
+  var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
            parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
