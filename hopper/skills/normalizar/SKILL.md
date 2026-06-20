@@ -43,11 +43,14 @@ diálogo, propuesta y confirmación.
 
 ## Las dos piezas de referencia
 
-- **`references/esquema-salida.md`** — el esquema canónico de salida (14
-  columnas). Es el contrato; léelo antes de entregar.
+- **`references/esquema-salida.md`** — el esquema canónico de salida (13
+  columnas, v3 con `division`). Es el contrato; léelo antes de entregar.
 - **`references/familias-de-formato.md`** — las familias de formato
   (**código** / **formato**), su huella de detección y la receta de
   clasificación de filas. Léelo antes de proponer el mapeo.
+- **`references/capas-y-correccion.md`** — la arquitectura por capas
+  (extracción → auto-auditoría + confianza → corrección dirigida) y la regla
+  universal "el capítulo nunca queda vacío". Es cómo funciona la app real.
 - **`assets/extraer.py`** — el extractor determinista, parametrizado por una
   CONFIG JSON. Cubre las dos familias y el trato de parciales.
 
