@@ -514,10 +514,19 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   function auditar(medRows){
     var n=medRows.length; if(!n) return {avisos:[], confianza:1};
     var a=[], pen=0;
-    // A) capítulo ausente en (casi) toda la hoja -> cabecera de capítulo no detectada
-    var sinCap=0; for(var i=0;i<n;i++) if(!txt(medRows[i].capitulo)) sinCap++;
-    if(sinCap===n){ a.push("Ninguna partida tiene capítulo: no se detectó la cabecera de capítulo (o el capítulo es la propia hoja)."); pen=Math.max(pen,0.4); }
-    else if(sinCap/n>=0.5){ a.push(sinCap+" de "+n+" partidas sin capítulo: puede faltar una cabecera de capítulo."); pen=Math.max(pen,0.3); }
+    // A) jerarquía rota: capítulo vacío PERO subcapítulo/sección con contenido es
+    //    imposible "bien" -> se perdió la cabecera de capítulo. (Distinto del caso
+    //    benigno en que TODO el nivel está vacío: ahí el capítulo es la propia hoja.)
+    var rota=0, sinCap=0;
+    for(var i=0;i<n;i++){ var capV=!txt(medRows[i].capitulo);
+      if(capV){ sinCap++; if(txt(medRows[i].subcapitulo)||txt(medRows[i].seccion)) rota++; } }
+    if(rota>0){
+      a.push(rota+" de "+n+" partidas con subcapítulo/sección pero SIN capítulo: se perdió la cabecera de capítulo.");
+      pen=Math.max(pen, Math.min(0.55, 0.2+(rota/n)*0.5));
+    } else if(sinCap===n){
+      a.push("Capítulo sin asignar en toda la hoja (probablemente el capítulo es la propia hoja).");
+      pen=Math.max(pen,0.1);   // benigno: apenas penaliza
+    }
     // B) misma descripción de partida repetida con el texto real en «detalle»
     //    (síntoma de columna de descripción mal asignada o herencia errónea)
     var freq={}, maxRep=0, maxKey="";
