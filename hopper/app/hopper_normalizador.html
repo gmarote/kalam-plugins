@@ -865,7 +865,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
     var top=caps.slice(0,9), resto=caps.slice(9);
     if(resto.length){ top.push(["+ "+resto.length+" capítulos más", resto.reduce(function(a,x){return a+x[1];},0)]); }
-    var donut='<div class="dcard"><div class="dc-text"><h3>Distribución por capítulo</h3><div class="donut-leg">'+
+    var donut='<div class="dcard"><div class="dc-text"><h3>Partidas por capítulo</h3><div class="donut-leg">'+
       top.map(function(x,i){return '<span class="li"><span class="sw" style="background:'+PALETA[i%PALETA.length]+'"></span><span class="t" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="v">'+x[1]+'</span></span>';}).join("")+'</div></div></div>';
     $("dash").innerHTML = ring+donut;
     var rc=$("dash").querySelector("circle[data-off]");   // dispara la animación del trazo
