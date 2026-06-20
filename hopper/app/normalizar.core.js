@@ -5,8 +5,10 @@
   "use strict";
 
   var CANON = ["archivo","hoja","fila_origen","capitulo","subcapitulo","seccion",
-               "ruta","codigo","partida","detalle","unidad","medicion",
-               "precio_unitario","importe"];
+               "ruta","codigo","partida","detalle","unidad","medicion"];
+
+  // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
+  var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
 
   function txt(v){ if(v===null||v===undefined) return ""; if(typeof v==="number"&&isNaN(v)) return ""; return String(v).trim(); }
 
@@ -22,13 +24,11 @@
   function isCaps(s){ var letters=s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>2 && s===s.toUpperCase(); }
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
   function isStructCode(s){ return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0; }
-  function isLetterChapter(s){ return /^[A-Za-z]{1,4}$/.test(s); }
+  function isLetterChapter(s){ return /^[A-Za-z]{1,4}\.?$/.test(s); }   // A, B, AB… con punto opcional (A., B.)
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
-    Object.keys(o).forEach(function(k){ r[k]=o[k]; });
-    if(r.medicion!==""&&r.medicion!==null&&r.precio_unitario!==""&&r.precio_unitario!==null)
-      r.importe = Math.round(Number(r.medicion)*Number(r.precio_unitario)*100)/100;
+    CANON.forEach(function(c){ if(c in o) r[c]=o[c]; });   // solo columnas del esquema
     return r;
   }
 
@@ -73,16 +73,39 @@
   }
   // ¿el valor es un código con punto? (1.1, 2.1.1, E.1)
   function esCodigoPunteado(s){ return isStructCode(s) && s.indexOf(".")>=0; }
-  // máximo nº de "hermanos": hijos distintos colgando del mismo padre (1.1,1.2,…,1.11 -> 11)
-  function maxHermanos(codes){
+  // máximo nº de "hermanos": hijos distintos del mismo padre (1.1,1.2,…,1.11 -> 11).
+  // Para 2 niveles exige que el PADRE exista como entero suelto en la columna (1, 2…),
+  // así una columna de cantidades decimales (2.5, 2.7…) no se confunde con código.
+  function maxHermanos(codes, intset){
     var g={}, mx=0;
     for(var i=0;i<codes.length;i++){ var p=codes[i].lastIndexOf("."); if(p<0) continue;
-      var pre=codes[i].slice(0,p); g[pre]=(g[pre]||0)+1; if(g[pre]>mx) mx=g[pre]; }
+      var pre=codes[i].slice(0,p); g[pre]=(g[pre]||0)+1; }
+    for(var k in g){
+      var vale = k.indexOf(".")>=0 || (intset&&intset[k]);   // hijo de padre dotado, o padre entero presente
+      if(vale && g[k]>mx) mx=g[k];
+    }
     return mx;
   }
   var UNID=/^(m|m2|m3|m²|m³|ml|cm|mm|km|kg|kgs|ton|t|un|u|und|uni|unid|vg|cj|conj|pç|pc|pcs|lote|h|hr|hrs|dia|dias|mes|mês|gl|l|lt|saco|saca|fg|ud|uds|par)\.?$/i;
   function esUnidad(s){ s=String(s).trim(); return UNID.test(s) || (s.length<=4 && /^[A-Za-zºª²³]+\.?$/.test(s)); }
   function ncols(grid){ var n=0; for(var i=0;i<grid.length;i++) if(grid[i]&&grid[i].length>n) n=grid[i].length; return n; }
+
+  // estimación INDEPENDIENTE del mapeo: nº de filas del original que "parecen" una
+  // medición (tienen un número > 0 y una unidad real en algún sitio). Sirve para
+  // reconciliar: si emitimos muchas menos partidas que esto, hemos perdido datos.
+  function estimaMedidas(grid, start){
+    var est=0;
+    for(var r=start;r<grid.length;r++){
+      var rw=grid[r]; if(!rw) continue; var hasNum=false, hasUnit=false;
+      for(var k=0;k<rw.length;k++){
+        var s=txt(cell(rw,k)); if(!s) continue;
+        var nu=toNum(s); if(nu!==null && nu>0) hasNum=true;
+        if(UNID.test(s)) hasUnit=true;
+        if(hasNum&&hasUnit){ est++; break; }
+      }
+    }
+    return est;
+  }
 
   // mapeo por etiquetas de cabecera (respaldo cuando el contenido no decide)
   function labelCols(grid, headerRow){
@@ -101,12 +124,13 @@
     var headerRow=best, start=best>=0?best+1:0, N=ncols(grid);
 
     // 2) métricas por columna sobre los datos
-    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{}};
+    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{},intset:{}};
     var seen=0;
     for(var r=start;r<grid.length && seen<400;r++){
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
+        if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
         if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
           if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
         var nu=toNum(s);
@@ -118,9 +142,15 @@
     }
     // puntuación de "columna de código": jerarquía real (3+ niveles, prefijo de letra o muchos hermanos)
     for(var q=0;q<N;q++){
-      var codes=Object.keys(met[q].codeset); met[q].nCodes=codes.length; met[q].herm=maxHermanos(codes);
+      var codes=Object.keys(met[q].codeset); met[q].nCodes=codes.length; met[q].herm=maxHermanos(codes, met[q].intset);
       met[q].esCodigo = codes.length>=3 && (met[q].segMax>=3 || met[q].letras>=2 || met[q].herm>=3);
     }
+
+    // etiquetas de cada columna (banda de cabecera: fila ±1, por si va a dos filas)
+    var lbl=[]; for(var L=0;L<N;L++){ var t=""; if(headerRow>=0) for(var rr=headerRow-1;rr<=headerRow+1;rr++) if(rr>=0&&rr<grid.length) t+=" "+txt(cell(grid[rr]||[],L)); lbl[L]=t.toLowerCase().replace(/\n/g," "); }
+    function esDim(s){ return /comp|larg|\balt|perim|perím|área|\barea|prof|parc|parte|dimens/.test(s); }   // columnas de dimensiones
+    function esQtyLbl(s){ return /\bqt\b|qtd|qte|quant|medi[cç]/.test(s); }                                  // cantidad (NO "total" a secas)
+    function esPriceLbl(s){ return /pre[cç]|custo|€|valor|p\.?\s?unit|or[cç]ament|import/.test(s); }          // precio/importe
 
     // 3) asignar roles por contenido (con respaldo de etiquetas/posición)
     var used={}, cols={}, lab=labelCols(grid, headerRow);
@@ -131,8 +161,11 @@
     pick("code", function(m){ return m.esCodigo ? m.nCodes : 0; });            // jerarquía real
     pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo
     pick("unit", function(m){ return m.unit; });                               // tokens de unidad
-    pick("qty",  function(m){ return m.numNZ; });                              // numérica con valores no-cero
-    pick("price",function(m){ return m.num; });                                // otra numérica (precio suele ir vacío)
+    pick("qty",  function(m,a){                                                // cantidad: QUANT/QT, NUNCA dimensiones/precio
+      if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0;
+      return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0);
+    });
+    pick("price",function(m,a){ return m.num + (esPriceLbl(lbl[a]) ? 1e7 : 0); });
     ["code","desc","unit","qty","price"].forEach(function(role,idx){
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
     });
@@ -142,24 +175,40 @@
   }
 
   // ---- familia CÓDIGO ----
-  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats){
-    var out=[], titles={}, start = headerRow>=0 ? headerRow+1 : 0;
+  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est){
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
+      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
-      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; continue; }
+      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+        pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); continue; }
       if(!isStructCode(code)){
-        if(qty!==null && unit){                       // ítem real sin código útil: NO se pierde
+        if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
-          var rutaP = rutaDe(titles, 99);
-          out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-            capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
-            ruta:rutaP,codigo:"",partida:desc,unidad:unit,medicion:qty,
-            precio_unitario:(price===null?"":price)}));
+          if(cur){                                    // partida compuesta: hereda código y partida de arriba
+            out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
+              capitulo:(cur.nivel>1?(titles[1]||""):""),
+              subcapitulo:(cur.nivel>2?(titles[2]||""):""),
+              seccion:(cur.nivel>3?(titles[3]||""):""),
+              ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
+              unidad:unit,medicion:qty}));
+            if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
+              if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
+              curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
+            } else pushEst({codigo:cur.code,nat:"Partida",ud:unit,partida:cur.desc,cantidad:qty});
+          } else {                                    // sin partida previa: se emite igual sin código
+            out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
+              capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
+              ruta:rutaDe(titles,99),codigo:"",partida:desc,
+              unidad:unit,medicion:qty}));
+            pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
+          }
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
         continue;
       }
@@ -170,11 +219,14 @@
           capitulo:(nivel>1?(titles[1]||""):""),
           subcapitulo:(nivel>2?(titles[2]||""):""),
           seccion:(nivel>3?(titles[3]||""):""),
-          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty,
-          precio_unitario:(price===null?"":price)}));
+          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty}));
+        cur={code:code,desc:desc,nivel:nivel};
+        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
+        cur={code:code,desc:desc,nivel:nivel};
+        pushEst({codigo:code,nat:(nivel===1?"Capitulo":nivel===2?"Subcapitulo":"Sección"),ud:"",partida:desc,cantidad:""});
       }
     }
     return out;
@@ -185,13 +237,16 @@
   }
 
   // ---- familia FORMATO ----
-  function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats){
-    var capitulo = capituloHoja, out=[], subcap="", partida=null;
+  function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
+    var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); capitulo=d||capituloHoja; }
+    pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
+      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
@@ -199,18 +254,25 @@
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
-        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++; continue; }
+        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++;
+          pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); continue; }
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
+        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:(qty!==null?qty:"")});
         continue;
       }
       if(qty!==null){
         stats.parcial++; var base=partida||{code:"",desc:""};
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,capitulo:capitulo,
           subcapitulo:subcap,ruta:ruta,codigo:base.code,partida:base.desc,detalle:desc,
-          unidad:unit,medicion:qty,precio_unitario:(price===null?"":price)}));
+          unidad:unit,medicion:qty}));
+        if(curEst && curEst.nat==="Partida"){                  // parcial -> suma a su partida
+          if(curEst.cantidad===""||curEst.cantidad==null) curEst.cantidad=qty;
+          else curEst.cantidad=(Number(curEst.cantidad)||0)+qty;
+          if(!curEst.ud) curEst.ud=unit;
+        } else pushEst({codigo:base.code,nat:"Partida",ud:unit,partida:base.desc,cantidad:qty});
       } else if(desc){ stats.nota++; out.push(["__nota__",hoja,fila,desc]); }
     }
     return out;
@@ -226,26 +288,36 @@
     return s;
   }
   function avisosDe(inf, medRows){
-    var a=[], c=inf.cols||{}, np=medRows.length;
-    var mapeo="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
+    var a=[], c=inf.cols||{}, np=medRows.length, est=inf.estMedidas||0;
+    var cols="descripción "+colLetra(c.desc)+" · unidad "+colLetra(c.unit)+" · cantidad "+colLetra(c.qty);
 
     if(np===0){
-      a.push("Sin partidas. Si es un resumen, notas o portada, ignórala; si esperabas mediciones, las columnas no cuadran (busqué "+mapeo+").");
+      if(est>=5) a.push("El original aparenta ~"+est+" mediciones pero no se extrajo ninguna: el mapeo de columnas no cuadra (asumí "+cols+"). Revísalo.");
+      else a.push("Sin partidas extraídas y apenas "+est+" fila"+(est===1?"":"s")+" con pinta de medición: probablemente no es una hoja de medición. Si esperabas datos, revisa las columnas.");
       return a;  // sin partidas, el resto de avisos no aporta
     }
-    if(inf.headerRow<0)
-      a.push("Sin cabecera clara; asumí columnas: "+mapeo+". Salieron "+np+" partidas — revísalas.");
-    else if(inf.headerScore<3)
-      a.push("Cabecera poco clara (fila "+(inf.headerRow+1)+"); asumí columnas: "+mapeo+". "+np+" partidas — comprueba las columnas.");
 
-    var us={}; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)) us[u]=1; });
+    // 1) Reconciliación: ¿hemos perdido mediciones respecto al original?
+    if(est>=5 && np < est*0.7)
+      a.push("Posible pérdida: el original aparenta ~"+est+" mediciones y solo se extrajeron "+np+". Revisa el mapeo (sobre todo la columna de cantidad).");
+    // 2) Mapeo poco seguro: solo si además quedó incompleto (en extracciones completas no molesta)
+    else if((inf.headerRow<0 || inf.headerScore<3) && est>0 && np<est)
+      a.push("Mapeo poco seguro (cabecera "+(inf.headerRow<0?"no localizada":"poco clara")+"); asumí "+cols+". Si las partidas no cuadran, ajusta las columnas.");
+
+    // 3) Unidades raras (proporcional: solo concluye si afecta a muchas filas)
+    var us={}, nU=0; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)){us[u]=1;nU++;} });
     var ul=Object.keys(us);
-    if(ul.length)
-      a.push("Unidades raras en la columna "+colLetra(c.unit)+" ("+ul.slice(0,5).join(", ")+"); quizá no sea la de unidades.");
+    if(ul.length){
+      if(nU>=np*0.5) a.push(nU+" de "+np+" partidas con unidad rara ("+ul.slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
+      else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
+    }
 
+    // 4) Cantidad 0 (proporcional)
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0)
-      a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0: puede ser normal, o que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
+    if(z>0){
+      if(z>=np*0.5) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
+      else a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
+    }
     return a;
   }
 
@@ -279,14 +351,15 @@
       var headerRow=ov.headerRow!=null?ov.headerRow:det.headerRow;
       var cols=ov.cols||det.cols;
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
-                  filas:grid.length,excluida:false,motivo:""};
-      var stats=nuevoStats(), res, medRows=[], notasRows=[];
-      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats);
-      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats);
+                  filas:grid.length,excluida:false,motivo:"",
+                  estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
+      var stats=nuevoStats(), res, medRows=[], notasRows=[], estRows=[];
+      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats,estRows);
+      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats,estRows);
       res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
-      data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows)};
+      data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
     });
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
@@ -306,16 +379,36 @@
       }
     });
 
-    // 3) salida desde las hojas no descartadas + avisos
-    var medic=[], notas=[];
+    // 3) SEGUNDA CAPA: descartar hojas que objetivamente no tienen mediciones.
+    //    Criterio (sin humano): 0 partidas extraídas Y el estimador independiente
+    //    apenas ve filas con cantidad+unidad -> no es hoja de medición (resumen,
+    //    índice, portada, notas). Si el estimador SÍ ve mediciones (est>=5), NO se
+    //    descarta: es señal de pérdida y se mantiene marcada (lo gestiona avisosDe).
+    nombres.forEach(function(h){
+      var i=info[h]; if(i.excluida) return;
+      // (a) ni una fila con cantidad+unidad real
+      if(i.nMed===0 && i.estMedidas===0){
+        i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)"; return;
+      }
+      // (b) extrajo "partidas" pero el estimador no ve nada Y casi todo es cantidad 0
+      //     -> resumen/subtotales mal interpretados (p. ej. listado de capítulos)
+      if(i.estMedidas===0 && i.nMed>0){
+        var ms=data[h].medRows, z=0; for(var k=0;k<ms.length;k++){ if(ms[k].medicion===0||ms[k].medicion===""||ms[k].medicion==null) z++; }
+        if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
+      }
+    });
+
+    // 4) salida desde las hojas no descartadas + avisos
+    var medic=[], notas=[], estruct=[];
     nombres.forEach(function(h){
       var i=info[h];
       if(i.excluida){ i.avisos=[i.motivo]; return; }
       medic=medic.concat(data[h].medRows);
       notas=notas.concat(data[h].notas);
+      estruct=estruct.concat(data[h].est);
       i.avisos=avisosDe(i, data[h].medRows);
     });
-    return { mediciones:medic, notas:notas, info:info, CANON:CANON };
+    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
@@ -335,21 +428,26 @@
         if(mayor && c>=0.8){ archivos[a].excluido=true; archivos[a].motivo="duplicado de «"+items[b].archivo+"» ("+Math.round(100*c)+"%)"; break; }
       }
     }
-    var medic=[], notas=[], hojas=[];
+    var usados=archivos.filter(function(a){return !a.excluido;}).length;
+    var medic=[], notas=[], hojas=[], estruct=[];
     items.forEach(function(it,i){
       if(archivos[i].excluido) return;
       medic=medic.concat(it.det.mediciones);
       notas=notas.concat(it.det.notas);
+      if(it.det.estructura && it.det.estructura.length){
+        if(usados>1) estruct.push({codigo:"",nat:"__archivo__",ud:"",partida:it.archivo,cantidad:""});
+        estruct=estruct.concat(it.det.estructura);
+      }
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
-                    motivo:inf.motivo,avisos:inf.avisos||[]});
+                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
       });
     });
-    return { mediciones:medic, notas:notas, archivos:archivos, hojas:hojas, CANON:CANON };
+    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
-  var API={CANON:CANON,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
+  var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
            parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;

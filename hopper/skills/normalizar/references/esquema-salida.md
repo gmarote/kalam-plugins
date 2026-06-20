@@ -19,16 +19,15 @@ expreso con el cliente. Si un campo no existe en el Excel de origen, se deja
 | 10| `detalle`         | texto  | Texto del parcial (desglose de medición). Vacío en la fila de partida.|
 | 11| `unidad`          | texto  | m, m², m³, ml, Un, Vg, kg, mês…                                       |
 | 12| `medicion`        | número | Cantidad medida. Decimal con punto. Vacío si no la trae.             |
-| 13| `precio_unitario` | número | Precio unitario. **Suele venir vacío** (MQT para licitar).           |
-| 14| `importe`         | número | `medicion × precio_unitario` si ambos existen; si no, vacío.         |
 
 > Cambios respecto a v1: se elimina `nivel` (la jerarquía pasa a columnas con
 > nombre `capitulo`/`subcapitulo`/`seccion` más `ruta` completa); se renombra
 > `unidad_obra` → `partida`, `unidad_medida` → `unidad` y `cod_partida` →
 > `codigo`; se añade delante el bloque de trazabilidad `archivo` / `hoja` /
-> `fila_origen`, y se añade `ruta`. `precio_unitario` e `importe` se **conservan**
-> (vienen normalmente vacíos en un MQT para licitar, pero se reserva el hueco
-> para el precio que ponga el contratista).
+> `fila_origen`, y se añade `ruta`. **No** se incluyen `precio_unitario` ni
+> `importe`: un MQT es un mapa de medición, no de presupuesto, y esos campos
+> venían siempre vacíos; el precio lo pone el contratista en su propia hoja de
+> costes (ver la exportación «hoja de costes», independiente de este esquema).
 
 ## Jerarquía: 3 niveles con nombre + ruta completa
 
@@ -96,9 +95,9 @@ parciales son la misma cantidad).
 - **Subtotales** y totales (`TOTAL …`, `SubTotal`).
 - Pestañas de **resumen** o **duplicadas** que el cliente marque como no-fuente.
 
-## Importe desglosado por zonas (familia B, opcional)
+## Medición desglosada por zonas (familia B, opcional)
 
-Algunos MQT reparten la medición/importe en varias columnas por zona del
-edificio (p. ej. "Pisos 0 a 3", "Piso 4", "Arranjos Exteriores"). Cuando
-aparezca, y solo entonces, se añaden columnas extra `zona_<nombre>` **al final**,
-sin alterar las 14 columnas canónicas.
+Algunos MQT reparten la medición en varias columnas por zona del edificio
+(p. ej. "Pisos 0 a 3", "Piso 4", "Arranjos Exteriores"). Cuando aparezca, y solo
+entonces, se añaden columnas extra `zona_<nombre>` **al final**, sin alterar las
+12 columnas canónicas.
