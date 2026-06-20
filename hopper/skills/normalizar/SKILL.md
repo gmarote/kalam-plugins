@@ -7,7 +7,8 @@ description: >
   cosas como: "normaliza estas mediciones", "estructura este MQT", "pásame
   este Excel a tabla", "ordena estas mediciones", "/hopper:normalizar".
   El output es un Excel limpio con columnas de identificación, nombre de
-  unidad de obra, unidad de medida, medición y precio unitario.
+  unidad de obra, unidad de medida y medición (un MQT mide, no presupuesta:
+  sin precio ni importe).
 ---
 
 # Hopper — Normalizador de Mediciones
@@ -27,9 +28,9 @@ diálogo, propuesta y confirmación.
 
 1. **La IA decide la ESTRUCTURA; el código extrae las CIFRAS.** Hopper razona
    sobre el fichero, propone el mapeo y clasifica los tipos de fila — pero las
-   mediciones y los precios los extrae **siempre** el script determinista
+   mediciones las extrae **siempre** el script determinista
    `assets/extraer.py`, celda a celda. **Nunca** transcribas a mano una
-   medición o un precio: un número inventado en un presupuesto es inaceptable.
+   medición: un número inventado en una medición es inaceptable.
 2. **Determinismo.** Una vez acordada la receta (la CONFIG), el mismo Excel
    produce siempre la misma salida, sea cual sea la sesión o el modelo.
 3. **No inventar.** Si un campo no está en el origen, se deja vacío. No se
@@ -95,9 +96,10 @@ defecto ya marcada (que el usuario confirme con un "sí" si está de acuerdo):
 1. **Pestañas fuente.** "Veo estas pestañas; usaría estas como mediciones e
    ignoraría `Resumo` y `Folha3` (parecen resumen/duplicados). ¿Correcto?"
 2. **Mapeo de columnas.** "He leído: código = col A, descripción = col B,
-   unidad = col C, medición = col D, precio = col E. ¿Es así?" Si hay columnas
-   `Parciais` y `Totais`, la medición es la de **`Totais`**. En maquetas ricas
-   (muchas columnas, `0` fantasma) **no fíes del mapeo por defecto**: confírmalo.
+   unidad = col C, medición = col D. ¿Es así?" Si hay columnas `Parciais` y
+   `Totais`, la medición es la de **`Totais`**. En maquetas ricas (muchas
+   columnas, `0` fantasma) **no fíes del mapeo por defecto**: confírmalo. Si hay
+   columna de precio/importe, se **ignora** (el MQT mide, no presupuesta).
 3. **Parciales** (SIEMPRE preguntar). "Las partidas traen su desglose de
    medición (parciales). ¿Los conservo como filas de detalle (recomendado) o
    los colapso sumándolos en la partida?"
@@ -105,9 +107,9 @@ defecto ya marcada (que el usuario confirme con un "sí" si está de acuerdo):
    conserva tal cual. Si es pobre (un prefijo repetido tipo `ARQ-`, o un `.`),
    `codigo` se deja **vacío** — no se inventa: la fila no se pierde, cuelga de
    los títulos vigentes (`capitulo`/`subcapitulo`/`seccion`/`ruta`).
-5. **Importe por zonas** (si aparece desglosado en varias columnas). "El
-   importe viene repartido por zonas (Pisos 0-3 / Piso 4 / Exteriores).
-   ¿Lo sumo, o conservo cada zona como columna aparte?"
+5. **Medición por zonas** (si aparece desglosada en varias columnas). "La
+   medición viene repartida por zonas (Pisos 0-3 / Piso 4 / Exteriores).
+   ¿La sumo, o conservo cada zona como columna aparte?"
 6. **Normalización de unidades** (opcional). Por defecto se conservan literales.
    Ofrécela solo si el usuario quiere homogeneizar (`m2`→`m²`, `un`/`u`→`Un`).
 
@@ -155,8 +157,8 @@ Nunca entregues sin reconciliar. Comprueba y **reporta** al usuario:
 - **Unidades anómalas**: lista las `unidad` distintas; si aparece algo
   raro (texto largo en la columna de unidad), avisa: suele indicar un mapeo de
   columna mal puesto.
-- **Coherencia numérica**: si hay precios, comprueba que `medicion × precio =
-  importe`. Señala las partidas con medición 0 o vacía.
+- **Coherencia numérica**: señala las partidas con medición 0 o vacía (pueden
+  ser un mapeo de columna mal puesto o partidas aún sin medir).
 - **Muestra**: enseña al usuario las primeras 15-20 filas de la salida para un
   visto bueno rápido.
 

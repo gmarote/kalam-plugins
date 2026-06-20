@@ -21,7 +21,7 @@ deterministas: la primera capa no necesita IA para los ficheros regulares.
     **todas** las hojas (no se descarta nada por nombre), muestra un **panel de
     avisos** que marca *solo* las hojas dudosas (0 partidas, unidades raras,
     cabecera de baja confianza, mediciones a 0), un **detalle por hoja** compacto
-    (tabla de solo lectura) y descarga el Excel normalizado (14 columnas + `Notas`).
+    (tabla de solo lectura) y descarga el Excel normalizado (12 columnas + `Notas`).
   - **deduplicación entre hojas**: si los ítems de una hoja están contenidos
     (≥80%) en otra mayor, se descarta como duplicada (evita el doble conteo del
     patrón "hoja agregado + hojas por capítulo", p. ej. Palácio: `MQT` master,

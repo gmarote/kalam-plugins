@@ -9,7 +9,7 @@ validación del plugin; no se mantiene en lockstep con el JS.
 NO es un parser "mágico": recibe una CONFIG (familia, mapeo de columnas, hojas,
 trato de parciales…) que el agente acuerda con el cliente, y aplica esa receta
 de forma reproducible. La IA decide la ESTRUCTURA; este script extrae las
-CIFRAS. Nunca se transcriben mediciones/precios a mano.
+CIFRAS. Nunca se transcriben mediciones a mano.
 
 Uso:
     python extraer.py <entrada.xlsx|.xls> <config.json> <salida.xlsx>
@@ -32,19 +32,17 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
 CANON = ["archivo", "hoja", "fila_origen", "capitulo", "subcapitulo", "seccion",
-         "ruta", "codigo", "partida", "detalle", "unidad", "medicion",
-         "precio_unitario", "importe"]
+         "ruta", "codigo", "partida", "detalle", "unidad", "medicion"]
 
 # ---------- formato de salida (presentación; nunca toca los datos) ----------
 ANCHOS = {"archivo": 22, "hoja": 16, "fila_origen": 9, "capitulo": 22,
           "subcapitulo": 24, "seccion": 20, "ruta": 42, "codigo": 10,
           "partida": 52, "detalle": 34, "unidad": 7, "medicion": 13,
-          "precio_unitario": 14, "importe": 14, "nota": 90}
+          "nota": 90}
 WRAP = {"partida", "detalle", "ruta", "subcapitulo", "seccion", "nota"}
 # Formato PT/ES (punto de millares, coma decimal) forzado con locale pt-PT [$-816],
 # para que se vea igual sea cual sea el idioma del Excel del cliente.
-NUMFMT = {"medicion": "[$-816]#,##0.00", "precio_unitario": "[$-816]#,##0.00",
-          "importe": "[$-816]#,##0.00"}
+NUMFMT = {"medicion": "[$-816]#,##0.00"}
 
 def formatear(ws, columnas):
     ws.freeze_panes = "A2"                 # cabecera siempre visible
@@ -98,9 +96,9 @@ def is_letter_chapter(s):
 
 def rec(**kw):
     r = {c: "" for c in CANON}
-    r.update(kw)
-    if r["medicion"] not in ("", None) and r["precio_unitario"] not in ("", None):
-        r["importe"] = round(float(r["medicion"]) * float(r["precio_unitario"]), 2)
+    for c in CANON:            # solo columnas del esquema (precio/importe se ignoran)
+        if c in kw:
+            r[c] = kw[c]
     return r
 
 # ---------- localizar cabecera ----------
@@ -136,8 +134,7 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
                 out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
                                capitulo=titles.get(1, ""), subcapitulo=titles.get(2, ""),
                                seccion=titles.get(3, ""), ruta=ruta, codigo="", partida=desc,
-                               unidad=unit, medicion=qty,
-                               precio_unitario=("" if price is None else price)))
+                               unidad=unit, medicion=qty))
             else:
                 stats["nota" if desc else "vacia"] += 1
                 if desc: out.append(("__nota__", hoja, fila, desc))
@@ -151,8 +148,7 @@ def parse_codigo(grid, cols, archivo, hoja, stats):
                            subcapitulo=(titles.get(2, "") if nivel > 2 else ""),
                            seccion=(titles.get(3, "") if nivel > 3 else ""),
                            ruta=ruta, codigo=code, partida=desc,
-                           unidad=unit, medicion=qty,
-                           precio_unitario=("" if price is None else price)))
+                           unidad=unit, medicion=qty))
         else:                                                 # título
             stats["titulo"] += 1
             titles[nivel] = desc
@@ -189,8 +185,7 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
             if qty is not None:                               # partida simple
                 out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
                                capitulo=capitulo, subcapitulo=subcap, ruta=ruta,
-                               codigo=code, partida=desc, unidad=unit, medicion=qty,
-                               precio_unitario=("" if price is None else price)))
+                               codigo=code, partida=desc, unidad=unit, medicion=qty))
             continue
         if qty is not None:                                   # parcial
             stats["parcial"] += 1
@@ -198,8 +193,7 @@ def parse_formato(grid, cols, archivo, hoja, capitulo_hoja, stats):
             out.append(rec(archivo=archivo, hoja=hoja, fila_origen=fila,
                            capitulo=capitulo, subcapitulo=subcap, ruta=ruta,
                            codigo=base["code"], partida=base["desc"],
-                           detalle=desc, unidad=unit, medicion=qty,
-                           precio_unitario=("" if price is None else price)))
+                           detalle=desc, unidad=unit, medicion=qty))
         elif desc:
             stats["nota"] += 1; out.append(("__nota__", hoja, fila, desc))
     return out
@@ -222,7 +216,7 @@ def colapsar(rows):
         if isinstance(k, tuple) and k and k[0] == "__nota__":   # nota, no clave de agregación
             out.append(k)
         else:
-            out.append(rec(**{c: agg[k][c] for c in CANON if c != "importe"}))
+            out.append(rec(**{c: agg[k][c] for c in CANON}))
     return out
 
 # ---------- principal ----------

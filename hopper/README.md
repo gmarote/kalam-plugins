@@ -13,8 +13,8 @@ de pestañas, una por capítulo, cada una con su maquetación, códigos y parcia
 Hopper convierte cualquiera de esos Excel en **una sola tabla estructurada**:
 trazabilidad (archivo, hoja, fila de origen), jerarquía con nombre (capítulo,
 subcapítulo, sección y ruta completa), código, una columna principal con el
-**nombre de la partida**, y columnas de **detalle**, **unidad**, **medición**,
-**precio unitario** e **importe**.
+**nombre de la partida**, y columnas de **detalle**, **unidad** y **medición**
+(un MQT mide, no presupuesta: sin precio ni importe).
 
 ## Dos líneas: la app (producto) y el plugin (laboratorio)
 
@@ -77,7 +77,7 @@ El diseño está validado sobre **varios ficheros reales de estudios distintos**
 (Rossio, Palácio Mendia, Ferragial ARQ/ESP, Calçada da Memória): la mayoría caen
 en la familia *código* (jerarquía por código `1.1.2.1` / `E.1`) y otros en
 *formato* (una pestaña por capítulo, jerarquía por mayúsculas, parciales sin
-código e importe por zonas). De ahí salen las **reglas universales** de
+código y medición por zonas). De ahí salen las **reglas universales** de
 clasificación de `references/familias-de-formato.md` (el discriminante siempre es
 "¿tiene unidad y medición?"). Todos producen el mismo esquema de salida.
 

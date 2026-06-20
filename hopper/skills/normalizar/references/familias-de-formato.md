@@ -125,9 +125,9 @@ la pena mapearlo como código y tratar la hoja como familia A.
 **Reconstrucción**: `capitulo` = nombre de la pestaña (o cabecera);
 `subcapitulo` = último título en MAYÚSCULAS; `ruta` = `capitulo > subcapitulo`.
 
-**Caso real**: Calçada da Memória (pestañas TRABP, ARQ, EST…), con **importe
-desglosado por zonas** en varias columnas (`Pisos 0 a 3`, `Piso 4`, `Arranjos
-Exteriores`, `Empreitada Geral`) → ver "Importe por zonas".
+**Caso real**: Calçada da Memória (pestañas TRABP, ARQ, EST…), con **medición
+desglosada por zonas** en varias columnas (`Pisos 0 a 3`, `Piso 4`, `Arranjos
+Exteriores`, `Empreitada Geral`) → ver "Medición por zonas".
 
 ---
 
@@ -142,12 +142,11 @@ Se registra la elección en el perfil.
 
 ---
 
-## Importe / medición por zonas
+## Medición por zonas
 
-Algunos MQT reparten la medición o el importe en varias columnas por zona del
-edificio. Cuando aparezca (y solo entonces) se añaden columnas extra
-`zona_<nombre>` **al final**, sin alterar las columnas canónicas (ver
-`esquema-salida.md`).
+Algunos MQT reparten la medición en varias columnas por zona del edificio.
+Cuando aparezca (y solo entonces) se añaden columnas extra `zona_<nombre>` **al
+final**, sin alterar las columnas canónicas (ver `esquema-salida.md`).
 
 ---
 
