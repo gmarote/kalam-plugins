@@ -784,7 +784,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   // pinta la vista previa aplicando el filtro del buscador (busca en TODAS las
   // filas y columnas, sin acentos; muestra hasta 200, el resto va en el Excel).
-  var NUM={medicion:1,precio_unitario:1,importe:1}, TOPE=200;
+  var NUM={medicion:1,precio_unitario:1,importe:1};
   function pintarTabla(){
     if(!merged || !merged.mediciones.length){ $("preview").innerHTML=""; $("buscarInfo").textContent=""; return; }
     var total=merged.mediciones.length, q=norm(filtro).trim();
@@ -792,6 +792,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       for(var i=0;i<merged.CANON.length;i++){ var v=r[merged.CANON[i]]; if(v!==""&&v!=null&&norm(v).indexOf(q)>=0) return true; }
       return false;
     }) : merged.mediciones;
+    var TOPE = q ? 2000 : 200;   // sin filtro: preview (200). Con filtro: todas las coincidencias (tope de seguridad 2000)
     var head="<thead><tr>"+merged.CANON.map(function(c){return "<th>"+c+"</th>";}).join("")+"</tr></thead>";
     var body=fil.slice(0,TOPE).map(function(r){
       return "<tr>"+merged.CANON.map(function(c){
