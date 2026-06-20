@@ -73,7 +73,10 @@
   .farchivo .cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
   .farchivo .dup{color:var(--warn);font-weight:600}
   .capwrap{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);padding:12px 16px;max-height:360px;overflow:auto}
-  .caprow{display:flex;align-items:center;gap:12px;padding:4px 0;font-size:12.5px}
+  .caprow{display:flex;align-items:center;gap:12px;padding:4px 8px;margin:0 -8px;border-radius:8px;font-size:12.5px;transition:background .12s}
+  .caprow.clk{cursor:pointer}
+  .caprow.clk:hover{background:var(--accent-soft)}
+  .caprow.activo{background:var(--accent-soft)} .caprow.activo .capn{color:var(--accent);font-weight:700}
   .capn{flex:0 0 230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
   .capbar{flex:1;height:15px;background:var(--soft);border-radius:8px;overflow:hidden;min-width:90px}
   .capfill{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#F2935A);border-radius:8px;transition:width .5s ease}
@@ -657,7 +660,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   file.addEventListener("change",function(){ if(file.files.length) cargarVarios(file.files); file.value=""; });
   $("reset").addEventListener("click",function(){ cargados=[]; merged=null; ultimoMs=0; filtro=""; if($("buscar")) $("buscar").value=""; procesando(false); recalcular(); });
   if($("verEjemplo")) $("verEjemplo").addEventListener("click",cargarEjemplo);
-  if($("buscar")){ var _bt; $("buscar").addEventListener("input",function(){ var v=this.value; clearTimeout(_bt); _bt=setTimeout(function(){ filtro=v; pintarTabla(); },150); }); }
+  if($("buscar")){ var _bt; $("buscar").addEventListener("input",function(){ var v=this.value; clearTimeout(_bt); _bt=setTimeout(function(){ filtro=v; pintarTabla(); marcarCapActivo(); },150); }); }
+  // clic en una barra del gráfico inferior -> filtra la tabla por ese capítulo (toggle)
+  $("resumen").addEventListener("click",function(ev){
+    var row=ev.target.closest?ev.target.closest(".caprow.clk"):null; if(!row) return;
+    var cap=row.getAttribute("data-cap");
+    filtro = (norm(filtro)===norm(cap)) ? "" : cap;       // si ya está activo, lo quita
+    if($("buscar")) $("buscar").value=filtro;
+    pintarTabla(); marcarCapActivo();
+    $("preview").scrollIntoView({behavior:"smooth",block:"center"});
+  });
 
   function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
 
@@ -775,11 +787,14 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
     var maxC=caps.length?caps[0][1]:1;
     var barras=caps.map(function(x){
-      return '<div class="caprow"><span class="capn" title="'+esc(x[0])+'">'+esc(x[0])+'</span>'+
+      var clk = x[0]!=="(sin capítulo)";
+      return '<div class="caprow'+(clk?" clk":"")+'"'+(clk?' data-cap="'+esc(x[0])+'"':'')+' title="'+esc(x[0])+(clk?" · clic para filtrar la tabla":"")+'">'+
+        '<span class="capn">'+esc(x[0])+'</span>'+
         '<span class="capbar"><span class="capfill" style="width:'+Math.max(3,Math.round(100*x[1]/maxC))+'%"></span></span>'+
         '<span class="capc">'+x[1]+'</span></div>';
     }).join("");
-    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length+' partidas</h2><div class="capwrap">'+barras+'</div>') : "";
+    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length+' partidas <span class="muted" style="font-weight:400">· clic para filtrar</span></h2><div class="capwrap">'+barras+'</div>') : "";
+    marcarCapActivo();
   }
 
   // pinta la vista previa aplicando el filtro del buscador (busca en TODAS las
@@ -806,6 +821,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
          (fil.length>TOPE?'<p class="muted" style="font-size:12px">Mostrando '+TOPE+' de '+fil.length.toLocaleString("pt-PT")+' filas'+(q?" filtradas":"")+'. El Excel descargado las trae todas.</p>':''))
       : '<div class="ok" style="background:var(--soft);color:var(--muted);border-color:var(--line)">Sin resultados para «'+esc(filtro)+'».</div>';
     $("buscarInfo").textContent = q ? (fil.length.toLocaleString("pt-PT")+" de "+total.toLocaleString("pt-PT")) : "";
+  }
+  // resalta en el gráfico el capítulo que coincide con el filtro actual
+  function marcarCapActivo(){
+    var rows=$("resumen").querySelectorAll(".caprow.clk"), f=norm(filtro);
+    Array.prototype.forEach.call(rows,function(r){ r.classList.toggle("activo", !!f && norm(r.getAttribute("data-cap"))===f); });
   }
 
   // ---- WOW: contadores que animan de 0 al valor (easeOutCubic) ----
