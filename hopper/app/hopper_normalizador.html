@@ -93,12 +93,12 @@
   .btn-ej{background:none;border:0;color:var(--accent);font:600 13.5px inherit;cursor:pointer;padding:6px 12px;border-radius:8px}
   .btn-ej:hover{background:var(--accent-soft)}
   /* dashboard: anillo de integridad + donut por capítulo */
-  .dash{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 6px}
-  .dcard{flex:1;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 20px;display:flex;align-items:center;gap:20px;animation:fade .35s ease}
-  .dcard h3{margin:0 0 6px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-  .ring-n{font:800 19px "DM Sans",sans-serif;fill:var(--ink)}
-  .ring-l{font:600 8.5px "DM Sans",sans-serif;fill:var(--muted)}
-  .d-sub{font-size:12.5px;color:var(--slate)} .d-sub b{color:var(--ink)}
+  .dash{display:flex;gap:18px;margin:2px 0 6px}
+  .dcard{flex:1 1 0;min-width:0;min-height:178px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 28px;display:flex;align-items:center;gap:30px;animation:fade .35s ease}
+  .dcard h3{margin:0 0 8px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .ring-n{font:800 26px "DM Sans",sans-serif;fill:var(--ink)}
+  .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
+  @media(max-width:720px){ .dash{flex-wrap:wrap} }
   .donut-leg{font-size:12px;color:var(--slate);display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
   .donut-leg .li{display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden}
   .donut-leg .li .t{overflow:hidden;text-overflow:ellipsis}
@@ -808,16 +808,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(rc) requestAnimationFrame(function(){ rc.setAttribute("stroke-dashoffset", rc.getAttribute("data-off")); });
   }
   function anilloSVG(pct, ok){
-    var R=34, C=2*Math.PI*R, off=C*(1-pct/100), col=ok?"#15803D":"#B45309";
-    return '<svg width="92" height="92" viewBox="0 0 92 92">'+
-      '<circle cx="46" cy="46" r="'+R+'" fill="none" stroke="#ECEEF1" stroke-width="9"/>'+
-      '<circle cx="46" cy="46" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+C.toFixed(1)+'" transform="rotate(-90 46 46)" style="transition:stroke-dashoffset 1s ease" data-off="'+off.toFixed(1)+'"/>'+
-      (ok?'<text x="46" y="51" text-anchor="middle" class="ring-n" style="fill:'+col+'">✓</text>'
-         :'<text x="46" y="50" text-anchor="middle" class="ring-n">'+pct+'%</text>')+'</svg>';
+    var R=48, C=2*Math.PI*R, off=C*(1-pct/100), col=ok?"#15803D":"#B45309";
+    return '<svg width="128" height="128" viewBox="0 0 128 128" style="flex:none">'+
+      '<circle cx="64" cy="64" r="'+R+'" fill="none" stroke="#ECEEF1" stroke-width="12"/>'+
+      '<circle cx="64" cy="64" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+C.toFixed(1)+'" transform="rotate(-90 64 64)" style="transition:stroke-dashoffset 1s ease" data-off="'+off.toFixed(1)+'"/>'+
+      (ok?'<text x="64" y="73" text-anchor="middle" class="ring-n" style="fill:'+col+';font-size:34px">✓</text>'
+         :'<text x="64" y="72" text-anchor="middle" class="ring-n">'+pct+'%</text>')+'</svg>';
   }
   function donutSVG(items){
-    if(items.length<=1) return '<svg width="92" height="92" viewBox="0 0 92 92" style="flex:none"><circle cx="46" cy="46" r="40" fill="'+PALETA[0]+'"/><circle cx="46" cy="46" r="24" fill="#fff"/></svg>';
-    var tot=items.reduce(function(a,x){return a+x[1];},0)||1, ang=-Math.PI/2, cx=46,cy=46,R=40,r=24, paths="";
+    if(items.length<=1) return '<svg width="128" height="128" viewBox="0 0 128 128" style="flex:none"><circle cx="64" cy="64" r="56" fill="'+PALETA[0]+'"/><circle cx="64" cy="64" r="34" fill="#fff"/></svg>';
+    var tot=items.reduce(function(a,x){return a+x[1];},0)||1, ang=-Math.PI/2, cx=64,cy=64,R=56,r=34, paths="";
     items.forEach(function(x,i){
       var frac=x[1]/tot, a2=ang+frac*2*Math.PI, large=frac>0.5?1:0;
       var x1=cx+R*Math.cos(ang), y1=cy+R*Math.sin(ang), x2=cx+R*Math.cos(a2), y2=cy+R*Math.sin(a2);
