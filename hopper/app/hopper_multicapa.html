@@ -647,6 +647,21 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
           if(mejor){ stats=mejor.p.stats; medRows=mejor.p.med; notasRows=mejor.p.not; estRows=mejor.p.est; info[hoja].capa3=mejor.msg; }
         }
       }
+      // CAPA 3 (regla universal): por definición toda partida tiene capítulo. Si
+      // tras las recetas aún queda capítulo vacío PERO hay ruta (existen títulos
+      // por encima), se compacta: el título más alto que exista pasa a capítulo,
+      // el siguiente a subcapítulo, etc. (si el más alto es una división, respeta).
+      var comp=0;
+      medRows.forEach(function(r){
+        if(!txt(r.capitulo) && txt(r.ruta)){
+          var parts=String(r.ruta).split(" > ").filter(Boolean);
+          var off=(parts[0]&&esDivision(parts[0])&&parts.length>1)?1:0;   // si la división es el único nivel, pasa a capítulo
+          if(off) r.division=parts[0];
+          r.capitulo=parts[off]||""; r.subcapitulo=parts[off+1]||""; r.seccion=parts[off+2]||"";
+          if(r.capitulo) comp++;
+        }
+      });
+      if(comp) info[hoja].compactado=comp;
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
@@ -699,6 +714,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var aud=auditar(data[h].medRows);                 // capa 2: auto-auditoría
       i.avisos=avisosDe(i, data[h].medRows).concat(aud.avisos);
       i.confianza=aud.confianza;
+      if(i.compactado){   // jerarquía incompleta en origen: capítulo inferido (compactado). Se marca, no se cae.
+        i.avisos.push(i.compactado+" partida"+(i.compactado>1?"s":"")+" con capítulo inferido (faltaba el nivel superior en origen): el título más alto presente pasó a capítulo. Revísalo.");
+        i.confianza=Math.min(i.confianza, 0.9);
+      }
     });
     return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
   }
