@@ -11,6 +11,13 @@ neutro); `../skills/normalizar/assets/extraer.py` queda como oráculo de validac
 Que esto funcione sin IA confirma que las "Reglas universales" son heurísticas
 deterministas: la primera capa no necesita IA para los ficheros regulares.
 
+### Dos variantes del HTML
+- **`hopper_normalizador.html`** — versión estable de **una pasada**. Se mantiene
+  **congelada** como fallback (autocontenida: lleva su propio motor embebido).
+- **`hopper_multicapa.html`** — variante en desarrollo donde se añaden las **capas
+  2 (auto-auditoría) y 3 (re-parseo dirigido)**. Es la que sigue a
+  `normalizar.core.js`; cuando el motor evoluciona, se re-incrusta aquí.
+
 ## Qué es
 
 - **`hopper_normalizador.html`** — standalone (~900 KB). Lleva embebidos:
@@ -21,7 +28,7 @@ deterministas: la primera capa no necesita IA para los ficheros regulares.
     **todas** las hojas (no se descarta nada por nombre), muestra un **panel de
     avisos** que marca *solo* las hojas dudosas (0 partidas, unidades raras,
     cabecera de baja confianza, mediciones a 0), un **detalle por hoja** compacto
-    (tabla de solo lectura) y descarga el Excel normalizado (12 columnas + `Notas`).
+    (tabla de solo lectura) y descarga el Excel normalizado (13 columnas + `Notas`).
   - **deduplicación entre hojas**: si los ítems de una hoja están contenidos
     (≥80%) en otra mayor, se descarta como duplicada (evita el doble conteo del
     patrón "hoja agregado + hojas por capítulo", p. ej. Palácio: `MQT` master,

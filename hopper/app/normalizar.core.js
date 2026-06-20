@@ -4,7 +4,7 @@
 (function (root) {
   "use strict";
 
-  var CANON = ["archivo","hoja","fila_origen","capitulo","subcapitulo","seccion",
+  var CANON = ["archivo","hoja","fila_origen","division","capitulo","subcapitulo","seccion",
                "ruta","codigo","partida","detalle","unidad","medicion"];
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
@@ -24,7 +24,7 @@
   function isCaps(s){ var letters=s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>2 && s===s.toUpperCase(); }
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
   function isStructCode(s){ return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0; }
-  function isLetterChapter(s){ return /^[A-Za-z]{1,4}\.?$/.test(s); }   // A, B, AB… con punto opcional (A., B.)
+  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
@@ -170,42 +170,91 @@
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
     });
 
+    // columna-prefijo de código: jerarquía partida en 2 columnas (p. ej. Bloco en col 0
+    // "A.", "A.1." y el ítem "1.1.1" en otra). Solo si a la izquierda del código hay
+    // códigos con letra inicial y algún nivel ("A.1.") — patrón inequívoco.
+    if(cols.code!=null){
+      var pre=-1, preN=0, deep=0;
+      for(var pc=0; pc<cols.code; pc++){
+        if(used[pc]) continue;
+        var cnt=0, dp=0;
+        for(var rr=start; rr<grid.length && rr<start+400; rr++){
+          var s2=txt(cell(grid[rr]||[],pc)).replace(/\s+/g,""); if(!s2) continue;
+          if(/^[A-Za-z]{1,4}\.?(\d+\.?)*$/.test(s2)){ cnt++; if(/^[A-Za-z]{1,4}\.\d/.test(s2)) dp++; }
+        }
+        if(cnt>preN){ preN=cnt; pre=pc; deep=dp; }
+      }
+      if(pre>=0 && preN>=3 && deep>=2){ cols.codePrefix=pre; used[pre]=1; }
+    }
+
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
   }
 
   // ---- familia CÓDIGO ----
-  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est){
+  // ---- nivel superior al capítulo: edificio / bloque / fase (cuando la obra lo trae) ----
+  function esDivision(s){ return /^\s*(bloco|bloque|edif[íi]cio|n[úu]cleo|corpo|torre)\b/i.test(String(s||"")); }
+  function divActiva(titles){ return (titles[1] && esDivision(titles[1])) ? 1 : 0; }   // 1 si el nivel 1 es una división
+  // columnas de jerarquía con nombre, desplazando uno si hay división por encima
+  function jer(titles, nivel){
+    var off=divActiva(titles);
+    return { division:(off?(titles[1]||""):""),
+             capitulo:(nivel>1+off?(titles[1+off]||""):""),
+             subcapitulo:(nivel>2+off?(titles[2+off]||""):""),
+             seccion:(nivel>3+off?(titles[3+off]||""):""),
+             ruta:rutaDe(titles,nivel) };
+  }
+  function natDe(titles, nivel){   // etiqueta Nat para la hoja de costes (con desplazamiento)
+    var off=divActiva(titles); if(nivel===1 && off) return "División";
+    var n=nivel-off; return n<=1?"Capitulo":n===2?"Subcapitulo":"Sección";
+  }
+  // normaliza un código (quita espacios, puntos finales, puntos dobles) y combina prefijo+código
+  function normCod(s){ return String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").replace(/\.{2,}/g,"."); }
+  function combinar(pref, code){ var a=normCod(pref), b=normCod(code); return b?(a?a+"."+b:b):a; }
+
+  // primer segmento común a TODOS los códigos (p. ej. "A" si todo es "A.x"): un
+  // nivel superior degenerado/constante sin cabecera propia. null si hay varios.
+  function prefijoConstante(medRows){
+    var seg=null, vis=false;
+    for(var i=0;i<medRows.length;i++){ var c=txt(medRows[i].codigo); if(!c) continue;
+      var s=c.split(".")[0]; if(seg===null){ seg=s; vis=true; } else if(s!==seg) return null; }
+    return vis ? seg : null;
+  }
+
+  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
-      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
+      if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
+      else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
+      if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
+      if(stripCero){ var _z=code.replace(/(\.0+)+$/,""); if(_z && isStructCode(_z)) code=_z; }   // capa 3: convenio "1.0"=capítulo, "1.1.0"=subcapítulo -> quita el cero final
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
-        pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); continue; }
+        pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""}); continue; }
       if(!isStructCode(code)){
         if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
           if(cur){                                    // partida compuesta: hereda código y partida de arriba
+            var Jc=jer(titles,cur.nivel);
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-              capitulo:(cur.nivel>1?(titles[1]||""):""),
-              subcapitulo:(cur.nivel>2?(titles[2]||""):""),
-              seccion:(cur.nivel>3?(titles[3]||""):""),
-              ruta:rutaDe(titles,cur.nivel),codigo:cur.code,partida:cur.desc,detalle:desc,
+              division:Jc.division,capitulo:Jc.capitulo,subcapitulo:Jc.subcapitulo,seccion:Jc.seccion,
+              ruta:Jc.ruta,codigo:cur.code,partida:cur.desc,detalle:desc,
               unidad:unit,medicion:qty}));
             if(curEst && curEst.codigo===cur.code && curEst.nat!=="Capitulo"){   // la cabecera era una partida compuesta
               if(curEst.nat!=="Partida"){ curEst.nat="Partida"; curEst.ud=unit; }
               curEst.cantidad=(Number(curEst.cantidad)||0)+qty;                  // suma de sus parciais
             } else pushEst({codigo:cur.code,nat:"Partida",ud:unit,partida:cur.desc,cantidad:qty});
           } else {                                    // sin partida previa: se emite igual sin código
+            var Jn=jer(titles,99);
             out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-              capitulo:titles[1]||"",subcapitulo:titles[2]||"",seccion:titles[3]||"",
-              ruta:rutaDe(titles,99),codigo:"",partida:desc,
+              division:Jn.division,capitulo:Jn.capitulo,subcapitulo:Jn.subcapitulo,seccion:Jn.seccion,
+              ruta:Jn.ruta,codigo:"",partida:desc,
               unidad:unit,medicion:qty}));
             pushEst({codigo:"",nat:"Partida",ud:unit,partida:desc,cantidad:qty});
           }
@@ -215,18 +264,17 @@
       var nivel = code.split(".").length;
       if(qty!==null && unit){
         stats.partida++;
+        var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
-          capitulo:(nivel>1?(titles[1]||""):""),
-          subcapitulo:(nivel>2?(titles[2]||""):""),
-          seccion:(nivel>3?(titles[3]||""):""),
-          ruta:rutaDe(titles,nivel),codigo:code,partida:desc,unidad:unit,medicion:qty}));
+          division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
+          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unit,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
       } else {
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:(nivel===1?"Capitulo":nivel===2?"Subcapitulo":"Sección"),ud:"",partida:desc,cantidad:""});
+        pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
       }
     }
     return out;
@@ -246,7 +294,8 @@
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
-      if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
+      if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
+      else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
@@ -321,6 +370,42 @@
     return a;
   }
 
+  // ---- CAPA 2: auto-auditoría. Con la tabla YA montada, busca incoherencias
+  //      internas que una pasada hacia delante no puede ver. No repara: señala
+  //      y devuelve una confianza 0..1 por hoja. ----
+  function auditar(medRows){
+    var n=medRows.length; if(!n) return {avisos:[], confianza:1};
+    var a=[], pen=0;
+    // A) jerarquía rota: capítulo vacío PERO subcapítulo/sección con contenido es
+    //    imposible "bien" -> se perdió la cabecera de capítulo. (Distinto del caso
+    //    benigno en que TODO el nivel está vacío: ahí el capítulo es la propia hoja.)
+    var rota=0, sinCap=0;
+    for(var i=0;i<n;i++){ var capV=!txt(medRows[i].capitulo);
+      if(capV){ sinCap++; if(txt(medRows[i].subcapitulo)||txt(medRows[i].seccion)) rota++; } }
+    if(rota>0){
+      a.push(rota+" de "+n+" partidas con subcapítulo/sección pero SIN capítulo: se perdió la cabecera de capítulo.");
+      pen=Math.max(pen, Math.min(0.55, 0.2+(rota/n)*0.5));
+    } else if(sinCap===n){
+      a.push("Capítulo sin asignar en toda la hoja (probablemente el capítulo es la propia hoja).");
+      pen=Math.max(pen,0.1);   // benigno: apenas penaliza
+    }
+    // B) misma descripción de partida repetida con el texto real en «detalle»
+    //    (síntoma de columna de descripción mal asignada o herencia errónea)
+    var freq={}, maxRep=0, maxKey="";
+    for(var j=0;j<n;j++){ var k=txt(medRows[j].partida); if(!k) continue; freq[k]=(freq[k]||0)+1; if(freq[k]>maxRep){ maxRep=freq[k]; maxKey=k; } }
+    if(maxRep>=4 && maxRep/n>=0.3){
+      var conDet=0; for(var p=0;p<n;p++) if(txt(medRows[p].partida)===maxKey && txt(medRows[p].detalle)) conDet++;
+      if(conDet>=Math.ceil(maxRep*0.7)){
+        a.push("La descripción «"+maxKey.slice(0,38)+(maxKey.length>38?"…":"")+"» se repite en "+maxRep+" partidas con el texto real en «detalle»: revisa si es un título colado como descripción.");
+        pen=Math.max(pen,0.45);
+      }
+    }
+    // C) muchas partidas sin código (señal leve: puede ser normal)
+    var sinCod=0; for(var q=0;q<n;q++) if(!txt(medRows[q].codigo)) sinCod++;
+    if(sinCod>=8 && sinCod/n>=0.6){ a.push(sinCod+" de "+n+" partidas sin código (códigos no reconocidos o ausentes)."); pen=Math.max(pen,0.15); }
+    return {avisos:a, confianza:Math.round((1-pen)*100)/100, rota:rota};
+  }
+
   // ---- huella de ítems de una hoja, para detectar duplicados entre hojas ----
   function clavesDe(medRows){
     var s={};
@@ -353,10 +438,43 @@
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
                   filas:grid.length,excluida:false,motivo:"",
                   estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
-      var stats=nuevoStats(), res, medRows=[], notasRows=[], estRows=[];
-      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats,estRows);
-      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats,estRows);
-      res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
+      function correr(o){
+        o=o||{}; var st=nuevoStats(), est=[], med=[], not=[];
+        var r=(familia==="codigo") ? parseCodigo(grid,cols,archivo,hoja,headerRow,st,est,o.seg,o.cero)
+                                   : parseFormato(grid,cols,archivo,hoja,headerRow,hoja,st,est);
+        r.forEach(function(x){ if(Array.isArray(x)) not.push({hoja:x[1],fila_origen:x[2],nota:x[3]}); else med.push(x); });
+        return {stats:st,est:est,med:med,not:not};
+      }
+      var p0=correr(null), stats=p0.stats, medRows=p0.med, notasRows=p0.not, estRows=p0.est;
+      // CAPA 3: la señal de "jerarquía rota" (capa 2) dispara la corrección. Se
+      // prueban varias recetas según la causa y se queda la que MÁS sube la
+      // confianza (y solo si la sube). Nunca empeora.
+      if(familia==="codigo"){
+        var aud0=auditar(medRows);
+        if(aud0.rota>0){
+          var cp=prefijoConstante(medRows), hyps=[];
+          if(cp) hyps.push({o:{seg:cp}, msg:"nivel constante «"+cp+"» sin cabecera: eliminado (la jerarquía sube un nivel)"});
+          hyps.push({o:{cero:1}, msg:"códigos con «.0» de cabecera (1.0 = capítulo): cero final normalizado"});
+          var mejorConf=aud0.confianza, mejor=null;
+          hyps.forEach(function(hy){ var p=correr(hy.o); var cf=auditar(p.med).confianza; if(cf>mejorConf){ mejorConf=cf; mejor={p:p,msg:hy.msg}; } });
+          if(mejor){ stats=mejor.p.stats; medRows=mejor.p.med; notasRows=mejor.p.not; estRows=mejor.p.est; info[hoja].capa3=mejor.msg; }
+        }
+      }
+      // CAPA 3 (regla universal): por definición toda partida tiene capítulo. Si
+      // tras las recetas aún queda capítulo vacío PERO hay ruta (existen títulos
+      // por encima), se compacta: el título más alto que exista pasa a capítulo,
+      // el siguiente a subcapítulo, etc. (si el más alto es una división, respeta).
+      var comp=0;
+      medRows.forEach(function(r){
+        if(!txt(r.capitulo) && txt(r.ruta)){
+          var parts=String(r.ruta).split(" > ").filter(Boolean);
+          var off=(parts[0]&&esDivision(parts[0])&&parts.length>1)?1:0;   // si la división es el único nivel, pasa a capítulo
+          if(off) r.division=parts[0];
+          r.capitulo=parts[off]||""; r.subcapitulo=parts[off+1]||""; r.seccion=parts[off+2]||"";
+          if(r.capitulo) comp++;
+        }
+      });
+      if(comp) info[hoja].compactado=comp;
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
@@ -402,11 +520,17 @@
     var medic=[], notas=[], estruct=[];
     nombres.forEach(function(h){
       var i=info[h];
-      if(i.excluida){ i.avisos=[i.motivo]; return; }
+      if(i.excluida){ i.avisos=[i.motivo]; i.confianza=1; return; }
       medic=medic.concat(data[h].medRows);
       notas=notas.concat(data[h].notas);
       estruct=estruct.concat(data[h].est);
-      i.avisos=avisosDe(i, data[h].medRows);
+      var aud=auditar(data[h].medRows);                 // capa 2: auto-auditoría
+      i.avisos=avisosDe(i, data[h].medRows).concat(aud.avisos);
+      i.confianza=aud.confianza;
+      if(i.compactado){   // jerarquía incompleta en origen: capítulo inferido (compactado). Se marca, no se cae.
+        i.avisos.push(i.compactado+" partida"+(i.compactado>1?"s":"")+" con capítulo inferido (faltaba el nivel superior en origen): el título más alto presente pasó a capítulo. Revísalo.");
+        i.confianza=Math.min(i.confianza, 0.9);
+      }
     });
     return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
   }
@@ -441,7 +565,8 @@
       Object.keys(it.det.info).forEach(function(h){
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
-                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[]});
+                    noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[],
+                    confianza:(inf.confianza==null?1:inf.confianza),capa3:inf.capa3||""});
       });
     });
     return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
