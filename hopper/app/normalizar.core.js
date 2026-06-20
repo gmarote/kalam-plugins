@@ -212,7 +212,16 @@
   function normCod(s){ return String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").replace(/\.{2,}/g,"."); }
   function combinar(pref, code){ var a=normCod(pref), b=normCod(code); return b?(a?a+"."+b:b):a; }
 
-  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est){
+  // primer segmento común a TODOS los códigos (p. ej. "A" si todo es "A.x"): un
+  // nivel superior degenerado/constante sin cabecera propia. null si hay varios.
+  function prefijoConstante(medRows){
+    var seg=null, vis=false;
+    for(var i=0;i<medRows.length;i++){ var c=txt(medRows[i].codigo); if(!c) continue;
+      var s=c.split(".")[0]; if(seg===null){ seg=s; vis=true; } else if(s!==seg) return null; }
+    return vis ? seg : null;
+  }
+
+  function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -220,6 +229,7 @@
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
       if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
       else if(/\s/.test(code)){ var _cs=code.replace(/\s+/g,""); if(isStructCode(_cs)) code=_cs; }   // código con espacios ("A 1.1.1.1") -> normaliza
+      if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
       if(unit==="0") unit="";
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
@@ -392,7 +402,7 @@
     // C) muchas partidas sin código (señal leve: puede ser normal)
     var sinCod=0; for(var q=0;q<n;q++) if(!txt(medRows[q].codigo)) sinCod++;
     if(sinCod>=8 && sinCod/n>=0.6){ a.push(sinCod+" de "+n+" partidas sin código (códigos no reconocidos o ausentes)."); pen=Math.max(pen,0.15); }
-    return {avisos:a, confianza:Math.round((1-pen)*100)/100};
+    return {avisos:a, confianza:Math.round((1-pen)*100)/100, rota:rota};
   }
 
   // ---- huella de ítems de una hoja, para detectar duplicados entre hojas ----
@@ -427,10 +437,29 @@
       info[hoja]={familia:familia,headerRow:headerRow,cols:cols,headerScore:det.headerScore,
                   filas:grid.length,excluida:false,motivo:"",
                   estMedidas:estimaMedidas(grid, headerRow>=0?headerRow+1:0)};
-      var stats=nuevoStats(), res, medRows=[], notasRows=[], estRows=[];
-      if(familia==="codigo") res=parseCodigo(grid,cols,archivo,hoja,headerRow,stats,estRows);
-      else res=parseFormato(grid,cols,archivo,hoja,headerRow,hoja,stats,estRows);
-      res.forEach(function(r){ if(Array.isArray(r)) notasRows.push({hoja:r[1],fila_origen:r[2],nota:r[3]}); else medRows.push(r); });
+      function correr(strip){
+        var st=nuevoStats(), est=[], med=[], not=[];
+        var r=(familia==="codigo") ? parseCodigo(grid,cols,archivo,hoja,headerRow,st,est,strip)
+                                   : parseFormato(grid,cols,archivo,hoja,headerRow,hoja,st,est);
+        r.forEach(function(x){ if(Array.isArray(x)) not.push({hoja:x[1],fila_origen:x[2],nota:x[3]}); else med.push(x); });
+        return {stats:st,est:est,med:med,not:not};
+      }
+      var p0=correr(null), stats=p0.stats, medRows=p0.med, notasRows=p0.not, estRows=p0.est;
+      // CAPA 3: la señal de "jerarquía rota" de la capa 2 dispara la corrección.
+      // Si todos los códigos cuelgan de un primer segmento constante sin cabecera
+      // propia, se reintenta quitándolo; se queda solo si la confianza mejora.
+      if(familia==="codigo"){
+        var aud0=auditar(medRows);
+        if(aud0.rota>0){
+          var cp=prefijoConstante(medRows);
+          if(cp){ var p1=correr(cp);
+            if(auditar(p1.med).confianza > aud0.confianza){
+              stats=p1.stats; medRows=p1.med; notasRows=p1.not; estRows=p1.est;
+              info[hoja].capa3="nivel constante «"+cp+"» sin cabecera: eliminado (la jerarquía sube un nivel)";
+            }
+          }
+        }
+      }
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
@@ -518,7 +547,7 @@
         var inf=it.det.info[h];
         hojas.push({archivo:it.archivo,hoja:h,nMed:inf.nMed||0,excluida:inf.excluida,
                     noFuente:!!inf.noFuente,motivo:inf.motivo,avisos:inf.avisos||[],
-                    confianza:(inf.confianza==null?1:inf.confianza)});
+                    confianza:(inf.confianza==null?1:inf.confianza),capa3:inf.capa3||""});
       });
     });
     return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
