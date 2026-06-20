@@ -11,6 +11,13 @@ neutro); `../skills/normalizar/assets/extraer.py` queda como oráculo de validac
 Que esto funcione sin IA confirma que las "Reglas universales" son heurísticas
 deterministas: la primera capa no necesita IA para los ficheros regulares.
 
+### Dos variantes del HTML
+- **`hopper_normalizador.html`** — versión estable de **una pasada**. Se mantiene
+  **congelada** como fallback (autocontenida: lleva su propio motor embebido).
+- **`hopper_multicapa.html`** — variante en desarrollo donde se añaden las **capas
+  2 (auto-auditoría) y 3 (re-parseo dirigido)**. Es la que sigue a
+  `normalizar.core.js`; cuando el motor evoluciona, se re-incrusta aquí.
+
 ## Qué es
 
 - **`hopper_normalizador.html`** — standalone (~900 KB). Lleva embebidos:
