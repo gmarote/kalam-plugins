@@ -12,8 +12,10 @@ costes" para pegar en el sistema de costes de Kalam.
 ### Dos líneas
 - **El producto** (`hopper/app/`): app **HTML autónoma, sin IA en runtime y sin
   servidor**. Los datos no salen del navegador del cliente.
-- **El laboratorio** (`hopper/skills/normalizar/`): el plugin de Claude — spec,
-  reglas en `references/`, y `assets/extraer.py` como **oráculo de validación**.
+- **El plugin** (`hopper/skills/normalizar/`): hace **lo mismo que la app**
+  ejecutando el **mismo motor** con `assets/normalizar.js` (Node), y además
+  permite **interacción para casos difíciles** (playbook en `SKILL.md`,
+  diagnóstico con `assets/inspeccionar.js`). `assets/extraer.py` es **legacy**.
 
 ### Ficheros clave (app)
 - **`hopper/app/normalizar.core.js`** — el motor. **Fuente de verdad** de la
