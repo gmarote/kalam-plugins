@@ -115,10 +115,8 @@
   .capfill{display:block;height:100%;border-radius:6px;transition:width .7s cubic-bezier(.22,1,.36,1)}
   .capc{flex:0 0 92px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
   .capc .pct{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:6px}
-  .kpis{display:flex;gap:18px;flex-wrap:wrap;margin:4px 0 2px;align-items:stretch}
-  .kpi-grp{display:flex;gap:14px;flex-wrap:wrap;flex:1 1 0;min-width:260px}
-  .kpi-sep{width:1px;background:var(--line);align-self:stretch;flex:none}
-  .kpi{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
+  .kpi{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
   .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
   .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
@@ -142,7 +140,7 @@
   .ring-n{font:800 26px "DM Sans",sans-serif;fill:var(--ink)}
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
   .dc-text{flex:1;min-width:0}
-  @media(max-width:720px){ .dash{flex-wrap:wrap} .kpi-sep{display:none} }
+  @media(max-width:720px){ .dash{flex-wrap:wrap} }
   .dc-chart{flex:none}
   .donut-leg{font-size:12px;color:var(--slate);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;row-gap:6px;min-width:0}
   .donut-leg .li{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden}
@@ -940,18 +938,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         '<div class="hs-sub">frente a días de trabajo manual</div></div></div>'+
         '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> mediciones<br>en '+nHojas+' hojas</div></div>') : "";
     $("kpis").innerHTML = m.length ? (hero+'<div class="kpis">'+
-      '<div class="kpi-grp">'+
-        kpi(usados,"archivo","archivos")+
-        kpi(nHojas,"hoja procesada","hojas procesadas")+
-        (nCorr?kpi(nCorr,"corrección automática","correcciones automáticas","corr"):"")+
-        kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+
-      '</div>'+
-      '<div class="kpi-sep"></div>'+
-      '<div class="kpi-grp">'+
-        kpi(nCap,"capítulo","capítulos")+
-        kpi(m.length,"partida","partidas")+
-      '</div>'+
-    '</div>') : "";
+      kpi(usados,"archivo","archivos")+
+      kpi(nHojas,"hoja procesada","hojas procesadas")+
+      (nCorr?kpi(nCorr,"corrección automática","correcciones automáticas","corr"):"")+
+      kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+
+      kpi(nCap,"capítulo","capítulos")+
+      kpi(m.length,"partida","partidas")+'</div>') : "";
     animarContadores($("kpis"));
     pintarDashboard(m, merged);
 
