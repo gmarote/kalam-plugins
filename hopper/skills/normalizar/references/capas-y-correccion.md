@@ -5,11 +5,50 @@ tres capas. La idea: **detectar dónde algo no cuadra y corregirlo solo cuando s
 puede demostrar que mejora** — y, cuando no, **señalarlo en vez de fallar en
 silencio**.
 
+## Capa 0 — ¿Es un MQT?
+Antes de fiarse de nada, el motor calcula una señal estructural por archivo
+(`esMQT`): la mejor hoja debe tener un mínimo de filas con **número + unidad
+real** (`estMedidas >= 8`). Calibrado con muestras: un Excel ajeno (inventario,
+listado de máquinas, fichero de otra app) puntúa 0–3; los MQT reales, 23–345.
+No bloquea —los datos se muestran igual— pero la UI/CLI **no fingen fiabilidad**:
+avisan «esto no parece un MQT». (El vocabulario de obra NO sirve como señal: los
+no-MQT también mencionan «grúa», «retroexcavadora»…; manda la estructura.)
+
 ## Capa 1 — Extracción
 Lee cada hoja de arriba abajo, detecta columnas por contenido (código,
 descripción, unidad, cantidad), clasifica cada fila (título / partida / parcial /
 nota / subtotal) y vuelca la tabla canónica. El discriminante universal de
 partida sigue siendo: **¿tiene unidad y medición?**
+
+### Detección de columnas — anclas y posición
+La descripción **parte la hoja**: es el ancla fiable (columna con el texto más
+largo), junto con la unidad (tokens de unidad). A partir de ahí:
+- **El código va a la IZQUIERDA de la descripción; la cantidad a la DERECHA.**
+  Evita el fallo típico en MQT donde una columna de **decimales** (cantidades o
+  dimensiones) se confunde con el código y ambos se intercambian (Lx Factory,
+  Hidden Away, Av5Out77). Una columna nunca es código si su cabecera dice
+  cantidad/precio/dimensión.
+- **Códigos cortos sin puntos** tipo `A`, `A1`, `B2` (familia *formato*): se
+  reconocen como columna de código aunque no tengan jerarquía con puntos
+  (CASA_RAMIREZ/ARQUITECTURA). Antes el motor cogía una columna de decimales y
+  generaba códigos basura.
+- En *formato*, el **capítulo es la pestaña**, no la etiqueta de columna: si el
+  texto del encabezado es «Designação»/«Descrição», el capítulo pasa a ser el
+  nombre de la hoja.
+
+### Herencia de unidad
+Patrón frecuente: una partida `1.1 …(m2)` declara la unidad, pero la cantidad
+está en sus filas hijas `1.1.1`, `1.1.2`… que no la repiten. Una fila **con
+código y cantidad pero sin unidad propia hereda la unidad del título padre**
+(con ámbito: se limpia al salir de su subárbol). Las filas-subtotal sin código
+siguen siendo notas, para no duplicar (CASA_RAMIREZ/ESTRUTURA, MQT inspektion).
+
+### Descarte de no-fuente (resúmenes)
+Una hoja de **resumen** lista disciplinas/capítulos con su importe pero sin
+unidades ni mediciones reales. Cuando el estimador independiente no ve **ninguna**
+medición (`estMedidas===0`) y las «partidas» emitidas **no tienen unidad** (≥95%),
+la hoja se marca como no-fuente (resumen/lista de importes). Garantía: solo actúa
+con `estMedidas===0`; una hoja con mediciones reales nunca se descarta.
 
 ## Capa 2 — Auto-auditoría (con la tabla ya montada)
 Busca incoherencias internas que una pasada hacia delante no puede ver, **sin

@@ -124,13 +124,14 @@
     var headerRow=best, start=best>=0?best+1:0, N=ncols(grid);
 
     // 2) métricas por columna sobre los datos
-    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{},intset:{}};
+    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,letterCode:0,codeset:{},intset:{}};
     var seen=0;
     for(var r=start;r<grid.length && seen<400;r++){
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
         if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
+        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(s)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
         if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
           if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
         var nu=toNum(s);
@@ -152,19 +153,31 @@
     function esQtyLbl(s){ return /\bqt\b|qtd|qte|quant|medi[cç]/.test(s); }                                  // cantidad (NO "total" a secas)
     function esPriceLbl(s){ return /pre[cç]|custo|€|valor|p\.?\s?unit|or[cç]ament|import/.test(s); }          // precio/importe
 
-    // 3) asignar roles por contenido (con respaldo de etiquetas/posición)
+    // 3) asignar roles. Primero las ANCLAS fiables (descripción = texto más largo;
+    //    unidad = tokens de unidad). Luego código y cantidad ANCLADOS por posición:
+    //    en un MQT el código va a la IZQUIERDA de la descripción y la cantidad a la
+    //    DERECHA de la unidad. Eso evita el fallo típico de que una columna de
+    //    decimales (cantidades/dimensiones) se confunda con el código y se intercambien.
     var used={}, cols={}, lab=labelCols(grid, headerRow);
     function pick(role, scoreFn){
       var bi=-1,bv=0; for(var a=0;a<N;a++){ if(used[a]) continue; var v=scoreFn(met[a],a); if(v>bv){bv=v;bi=a;} }
-      if(bi>=0){ cols[role]=bi; used[bi]=1; }
+      if(bi>=0){ cols[role]=bi; used[bi]=1; } return bi;
     }
-    pick("code", function(m){ return m.esCodigo ? m.nCodes : 0; });            // jerarquía real
-    pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo
-    pick("unit", function(m){ return m.unit; });                               // tokens de unidad
-    pick("qty",  function(m,a){                                                // cantidad: QUANT/QT, NUNCA dimensiones/precio
-      if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0;
-      return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0);
-    });
+    function pickPos(role, scoreFn, lo, hi){   // como pick pero restringido a columnas [lo..hi]
+      var bi=-1,bv=0; for(var a=0;a<N;a++){ if(used[a]||a<lo||a>hi) continue; var v=scoreFn(met[a],a); if(v>bv){bv=v;bi=a;} }
+      if(bi>=0){ cols[role]=bi; used[bi]=1; } return bi;
+    }
+    pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo (ancla)
+    pick("unit", function(m){ return m.unit; });                              // tokens de unidad (ancla)
+    function codeScore(m,a){ if(esQtyLbl(lbl[a])||esPriceLbl(lbl[a])||esDim(lbl[a])) return 0;   // nunca es código si la cabecera dice cantidad/precio/dimensión
+      if(m.esCodigo) return 1e6+m.nCodes;                                                          // jerarquía con puntos: máxima prioridad
+      return (m.letterCode>=3) ? m.letterCode : 0; }                                               // si no, columna de códigos cortos tipo "A","A1","B2"
+    function qtyScore(m,a){ if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0; return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0); }
+    // la descripción parte la hoja: identificadores (código) a su izquierda;
+    // medidas (unidad/cantidad/precio) a su derecha. Evita el cruce código↔cantidad.
+    var dIdx=(cols.desc!=null?cols.desc:N);
+    if(pickPos("code", codeScore, 0, dIdx-1)<0) pick("code", codeScore);       // código a la izquierda de la descripción (si no lo hay, sin restricción)
+    if(pickPos("qty",  qtyScore, dIdx+1, N-1)<0) pick("qty", qtyScore);        // cantidad a la derecha de la descripción (si no la hay, sin restricción)
     pick("price",function(m,a){ return m.num + (esPriceLbl(lbl[a]) ? 1e7 : 0); });
     ["code","desc","unit","qty","price"].forEach(function(role,idx){
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
@@ -223,6 +236,7 @@
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -262,15 +276,18 @@
         continue;
       }
       var nivel = code.split(".").length;
-      if(qty!==null && unit){
+      var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
+      if(qty!==null && unitEff){
         stats.partida++;
         var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
-          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unit,medicion:qty}));
+          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unitEff,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
+        pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
       } else {
+        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
+        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
@@ -288,7 +305,7 @@
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
     var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
-    if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); capitulo=d||capituloHoja; }
+    if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
@@ -508,11 +525,15 @@
       if(i.nMed===0 && i.estMedidas===0){
         i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)"; return;
       }
-      // (b) extrajo "partidas" pero el estimador no ve nada Y casi todo es cantidad 0
-      //     -> resumen/subtotales mal interpretados (p. ej. listado de capítulos)
+      // (b) extrajo "partidas" pero el estimador no ve NINGUNA medición real
+      //     (ni una fila con número+unidad) -> resumen/lista de importes mal
+      //     interpretado: o casi todo es cantidad 0, o no hay unidades en absoluto
+      //     (un resumen lista disciplinas con su importe, sin unidad).
       if(i.estMedidas===0 && i.nMed>0){
-        var ms=data[h].medRows, z=0; for(var k=0;k<ms.length;k++){ if(ms[k].medicion===0||ms[k].medicion===""||ms[k].medicion==null) z++; }
+        var ms=data[h].medRows, z=0, sinU=0;
+        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; if(!txt(ms[k].unidad)) sinU++; }
         if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
+        else if(sinU/ms.length>=0.95){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (sin unidades; parece un resumen/lista de importes)"; }
       }
     });
 
@@ -532,7 +553,13 @@
         i.confianza=Math.min(i.confianza, 0.9);
       }
     });
-    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
+    // ¿es un MQT del sector? Señal estructural robusta: la mejor hoja debe tener
+    // un mínimo de filas con número + unidad real (estMedidas). Un Excel ajeno
+    // (inventario, listado…) no llega. No bloquea: la UI lo usa para avisar y no
+    // fingir fiabilidad. (Calibrado: no-MQT <=3, MQT reales >=23.)
+    var maxEst=0; nombres.forEach(function(h){ var em=info[h].estMedidas||0; if(em>maxEst) maxEst=em; });
+    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD,
+             esMQT:(maxEst>=8), mqtScore:maxEst };
   }
 
   // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
@@ -542,7 +569,7 @@
   function acumular(items){
     var claves=items.map(function(it){ return clavesDe(it.det.mediciones); });
     var n=claves.map(function(k){ return Object.keys(k).length; });
-    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:""}; });
+    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:"", esMQT:(it.det.esMQT!==false)}; });
     for(var a=0;a<items.length;a++){
       if(n[a]===0) continue;
       for(var b=0;b<items.length;b++){
@@ -569,7 +596,9 @@
                     confianza:(inf.confianza==null?1:inf.confianza),capa3:inf.capa3||""});
       });
     });
-    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
+    var algunMQT=archivos.some(function(a){return !a.excluido && a.esMQT;});
+    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas,
+             esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
