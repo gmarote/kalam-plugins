@@ -124,13 +124,14 @@
     var headerRow=best, start=best>=0?best+1:0, N=ncols(grid);
 
     // 2) métricas por columna sobre los datos
-    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,codeset:{},intset:{}};
+    var met=[]; for(var c=0;c<N;c++) met[c]={num:0,numNZ:0,unit:0,textLen:0,textN:0,segMax:0,letras:0,letterCode:0,codeset:{},intset:{}};
     var seen=0;
     for(var r=start;r<grid.length && seen<400;r++){
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
         if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
+        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(s)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
         if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
           if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
         var nu=toNum(s);
@@ -168,7 +169,9 @@
     }
     pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo (ancla)
     pick("unit", function(m){ return m.unit; });                              // tokens de unidad (ancla)
-    function codeScore(m,a){ if(esQtyLbl(lbl[a])||esPriceLbl(lbl[a])||esDim(lbl[a])) return 0; return m.esCodigo ? m.nCodes : 0; }   // nunca es código si la cabecera dice cantidad/precio/dimensión
+    function codeScore(m,a){ if(esQtyLbl(lbl[a])||esPriceLbl(lbl[a])||esDim(lbl[a])) return 0;   // nunca es código si la cabecera dice cantidad/precio/dimensión
+      if(m.esCodigo) return 1e6+m.nCodes;                                                          // jerarquía con puntos: máxima prioridad
+      return (m.letterCode>=3) ? m.letterCode : 0; }                                               // si no, columna de códigos cortos tipo "A","A1","B2"
     function qtyScore(m,a){ if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0; return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0); }
     // la descripción parte la hoja: identificadores (código) a su izquierda;
     // medidas (unidad/cantidad/precio) a su derecha. Evita el cruce código↔cantidad.
@@ -302,7 +305,7 @@
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
     var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
-    if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); capitulo=d||capituloHoja; }
+    if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
