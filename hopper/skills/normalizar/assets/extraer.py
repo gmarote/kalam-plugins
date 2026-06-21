@@ -3,8 +3,9 @@
 Extractor determinista de mediciones (MQT) -> tabla canónica de una sola hoja.
 
 NOTA: la lógica que se publica vive en `app/normalizar.core.js` (JS), que es la
-fuente de verdad. Este script es el extractor de referencia / oráculo de
-validación del plugin; no se mantiene en lockstep con el JS.
+fuente de verdad, y el plugin la ejecuta con `assets/normalizar.js`. Este script
+Python es **legacy / oráculo de validación**: no es la ruta principal, no tiene
+las capas 2/3 ni `division`, y no se mantiene en lockstep con el JS.
 
 NO es un parser "mágico": recibe una CONFIG (familia, mapeo de columnas, hojas,
 trato de parciales…) que el agente acuerda con el cliente, y aplica esa receta
