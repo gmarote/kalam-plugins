@@ -30,11 +30,33 @@
 
   main{max-width:1280px;margin:0 auto;padding:26px 28px 60px}
 
-  .dropzone{border:1.5px dashed #D1D5DB;border-radius:var(--radius);background:#FFFFFF;box-shadow:var(--shadow);cursor:pointer;transition:all .22s ease;position:relative;overflow:hidden;display:block;padding:52px 24px;text-align:center}
-  .dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--accent-soft)}
+  /* D · hero con más presencia: zona más alta y halo sutil del acento */
+  .dropzone{border:1.5px dashed #D1D5DB;border-radius:var(--radius);background:radial-gradient(130% 130% at 50% -10%,#FFF6EF 0%,#FFFFFF 58%);box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden;display:block;padding:60px 24px;text-align:center}
+  .dropzone:hover{border-color:var(--accent)}
+  /* B · drag-over dramático: se eleva, brilla y el borde se anima (marching ants) */
+  .dropzone.over{border-color:transparent;background:var(--accent-soft);transform:translateY(-4px) scale(1.006);box-shadow:0 18px 50px rgba(232,89,12,.20)}
+  .dropzone.over::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
+    background:linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y;
+    background-size:16px 2px,16px 2px,2px 16px,2px 16px;background-position:0 0,0 100%,0 0,100% 0;animation:ants .55s linear infinite}
+  @keyframes ants{to{background-position:16px 0,-16px 100%,0 -16px,100% 16px}}
   .dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  .dz-ico{font-size:34px;display:block;margin-bottom:12px}
-  .dz-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:5px}
+  /* A · maqueta antes→después: cuenta la transformación sin haber subido nada */
+  .dz-demo{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 auto 20px;max-width:400px;animation:float 4s ease-in-out infinite}
+  .dropzone.over .dz-demo{animation:none;transform:scale(1.05)}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .dz-col{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .dz-cap{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .dzs{width:128px;border-radius:10px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:5px}
+  .dzs-msgy{transform:rotate(-2deg);background:#FBFBFC}
+  .dzs-msgy .r{height:7px;border-radius:3px;background:#E1E4E9}
+  .dzs-msgy .r.merge{background:#CFD4DA;width:100%}
+  .dzs-clean .hd{height:9px;border-radius:3px;background:linear-gradient(90deg,var(--accent),#F2935A)}
+  .dzs-clean .row{height:7px;border-radius:3px;background:#EEF1F4}
+  .dzs-clean .row.alt{background:#F6F8FA}
+  .dz-arrow{font-size:22px;color:var(--accent);font-weight:800;flex:none;animation:nudge 1.6s ease-in-out infinite}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+  @media(prefers-reduced-motion:reduce){.dz-demo,.dz-arrow{animation:none}}
+  .dz-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:5px}
   .dz-sub{font-size:13px;color:var(--muted)}
   .dz-pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;color:var(--teal);background:#E7F4F5;border:1px solid #cfe9eb;padding:5px 12px;border-radius:20px}
 
@@ -140,7 +162,29 @@
 <main>
   <label class="dropzone" id="drop">
     <input type="file" id="file" accept=".xlsx,.xls" multiple>
-    <span class="dz-ico">📐</span>
+    <div class="dz-demo" aria-hidden="true">
+      <div class="dz-col">
+        <div class="dzs dzs-msgy">
+          <span class="r" style="width:70%"></span>
+          <span class="r" style="width:92%;margin-left:8%"></span>
+          <span class="r merge"></span>
+          <span class="r" style="width:48%"></span>
+          <span class="r" style="width:82%;margin-left:6%"></span>
+        </div>
+        <span class="dz-cap">MQT en bruto</span>
+      </div>
+      <span class="dz-arrow">→</span>
+      <div class="dz-col">
+        <div class="dzs dzs-clean">
+          <span class="hd"></span>
+          <span class="row"></span>
+          <span class="row alt"></span>
+          <span class="row"></span>
+          <span class="row alt"></span>
+        </div>
+        <span class="dz-cap">Tabla normalizada</span>
+      </div>
+    </div>
     <div class="dz-title">Arrastra aquí tus archivos MQT</div>
     <div class="dz-sub">o haz clic para seleccionarlos · puedes cargar uno o varios, se combinan en una sola tabla · admite <b>.xlsx</b> y <b>.xls</b></div>
     <span class="dz-pill">🔒 Tus datos no salen de tu ordenador: el procesamiento es local</span>
