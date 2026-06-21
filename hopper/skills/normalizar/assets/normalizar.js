@@ -122,7 +122,13 @@ var fuente=merged.hojas.filter(function(h){return !h.excluida;});
 var num=0,den=0; fuente.forEach(function(h){ var w=h.nMed||0; num+=(h.confianza==null?1:h.confianza)*w; den+=w; });
 var confGlobal=den?Math.round(100*num/den):100;
 var revisar=fuente.filter(function(h){return (h.confianza!=null&&h.confianza<1)||(h.avisos&&h.avisos.length);});
-console.log("\n════════ HOPPER · "+merged.mediciones.length+" mediciones · confianza global "+confGlobal+"% ════════");
+if(merged.esMQT===false){
+  console.log("\n⚠️  ESTO NO PARECE UN MQT DE MEDICIONES.");
+  console.log("   No se han encontrado columnas de medición habituales (unidad + cantidad).");
+  console.log("   Se ha procesado igualmente, pero NO se evalúa la fiabilidad. Revisa el archivo.");
+}
+console.log("\n════════ HOPPER · "+merged.mediciones.length+" mediciones · "+
+            (merged.esMQT===false ? "(sin evaluación de fiabilidad: no parece un MQT)" : "confianza global "+confGlobal+"%")+" ════════");
 console.log("Escrito: "+f1); if(f2) console.log("Escrito: "+f2);
 console.log("\nPor hoja:");
 merged.hojas.forEach(function(h){

@@ -54,6 +54,9 @@ nuevo** cuando aparece.
    un **informe de diagnóstico**: mediciones totales, **confianza global y por
    hoja**, avisos, y las correcciones de capa 3 que aplicó (`✓ …`).
 3. **Lee el informe.**
+   - **Aviso «no parece un MQT»** (el archivo no tiene columnas de medición
+     habituales: unidad + cantidad) → díselo al usuario y **no afirmes fiabilidad**;
+     probablemente se ha cargado un Excel que no es un Mapa de Quantidades.
    - **Confianza alta y sin avisos accionables** → entrega los dos Excel con
      `SendUserFile`, resumiendo en una línea (nº de mediciones, hojas usadas).
    - **Alguna hoja a revisar** (confianza <~95% por «jerarquía rota», unidades
@@ -108,6 +111,8 @@ pregunta de más es mejor que una jerarquía mal puesta.
    vacías, para copy/paste en la plantilla de costes de Kalam.
 
 ## Qué NO hace Hopper
+- No finge fiabilidad con archivos ajenos: si el Excel no parece un MQT (sin
+  columnas de medición), lo avisa y no evalúa la confianza.
 - No estima precios ni mediciones que no estén en el origen.
 - No mezcla notas/condiciones generales con las mediciones (van a hoja aparte).
 - No altera unidades ni códigos salvo que aporte (y se documenta como receta).
