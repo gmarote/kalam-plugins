@@ -760,11 +760,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       if(i.nMed===0 && i.estMedidas===0){
         i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (ninguna fila con cantidad + unidad)"; return;
       }
-      // (b) extrajo "partidas" pero el estimador no ve nada Y casi todo es cantidad 0
-      //     -> resumen/subtotales mal interpretados (p. ej. listado de capítulos)
+      // (b) extrajo "partidas" pero el estimador no ve NINGUNA medición real
+      //     (ni una fila con número+unidad) -> resumen/lista de importes mal
+      //     interpretado: o casi todo es cantidad 0, o no hay unidades en absoluto
+      //     (un resumen lista disciplinas con su importe, sin unidad).
       if(i.estMedidas===0 && i.nMed>0){
-        var ms=data[h].medRows, z=0; for(var k=0;k<ms.length;k++){ if(ms[k].medicion===0||ms[k].medicion===""||ms[k].medicion==null) z++; }
+        var ms=data[h].medRows, z=0, sinU=0;
+        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; if(!txt(ms[k].unidad)) sinU++; }
         if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
+        else if(sinU/ms.length>=0.95){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (sin unidades; parece un resumen/lista de importes)"; }
       }
     });
 
