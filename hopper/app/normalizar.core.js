@@ -152,19 +152,29 @@
     function esQtyLbl(s){ return /\bqt\b|qtd|qte|quant|medi[cç]/.test(s); }                                  // cantidad (NO "total" a secas)
     function esPriceLbl(s){ return /pre[cç]|custo|€|valor|p\.?\s?unit|or[cç]ament|import/.test(s); }          // precio/importe
 
-    // 3) asignar roles por contenido (con respaldo de etiquetas/posición)
+    // 3) asignar roles. Primero las ANCLAS fiables (descripción = texto más largo;
+    //    unidad = tokens de unidad). Luego código y cantidad ANCLADOS por posición:
+    //    en un MQT el código va a la IZQUIERDA de la descripción y la cantidad a la
+    //    DERECHA de la unidad. Eso evita el fallo típico de que una columna de
+    //    decimales (cantidades/dimensiones) se confunda con el código y se intercambien.
     var used={}, cols={}, lab=labelCols(grid, headerRow);
     function pick(role, scoreFn){
       var bi=-1,bv=0; for(var a=0;a<N;a++){ if(used[a]) continue; var v=scoreFn(met[a],a); if(v>bv){bv=v;bi=a;} }
-      if(bi>=0){ cols[role]=bi; used[bi]=1; }
+      if(bi>=0){ cols[role]=bi; used[bi]=1; } return bi;
     }
-    pick("code", function(m){ return m.esCodigo ? m.nCodes : 0; });            // jerarquía real
-    pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo
-    pick("unit", function(m){ return m.unit; });                               // tokens de unidad
-    pick("qty",  function(m,a){                                                // cantidad: QUANT/QT, NUNCA dimensiones/precio
-      if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0;
-      return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0);
-    });
+    function pickPos(role, scoreFn, lo, hi){   // como pick pero restringido a columnas [lo..hi]
+      var bi=-1,bv=0; for(var a=0;a<N;a++){ if(used[a]||a<lo||a>hi) continue; var v=scoreFn(met[a],a); if(v>bv){bv=v;bi=a;} }
+      if(bi>=0){ cols[role]=bi; used[bi]=1; } return bi;
+    }
+    pick("desc", function(m){ return m.textN ? m.textLen/m.textN : 0; });      // texto más largo (ancla)
+    pick("unit", function(m){ return m.unit; });                              // tokens de unidad (ancla)
+    function codeScore(m,a){ if(esQtyLbl(lbl[a])||esPriceLbl(lbl[a])||esDim(lbl[a])) return 0; return m.esCodigo ? m.nCodes : 0; }   // nunca es código si la cabecera dice cantidad/precio/dimensión
+    function qtyScore(m,a){ if(esDim(lbl[a]) || esPriceLbl(lbl[a])) return 0; return m.numNZ + (esQtyLbl(lbl[a]) ? 1e7 : 0); }
+    // la descripción parte la hoja: identificadores (código) a su izquierda;
+    // medidas (unidad/cantidad/precio) a su derecha. Evita el cruce código↔cantidad.
+    var dIdx=(cols.desc!=null?cols.desc:N);
+    if(pickPos("code", codeScore, 0, dIdx-1)<0) pick("code", codeScore);       // código a la izquierda de la descripción (si no lo hay, sin restricción)
+    if(pickPos("qty",  qtyScore, dIdx+1, N-1)<0) pick("qty", qtyScore);        // cantidad a la derecha de la descripción (si no la hay, sin restricción)
     pick("price",function(m,a){ return m.num + (esPriceLbl(lbl[a]) ? 1e7 : 0); });
     ["code","desc","unit","qty","price"].forEach(function(role,idx){
       if(cols[role]==null) cols[role] = (lab[role]!=null && !used[lab[role]] ? lab[role] : idx);
