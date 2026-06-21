@@ -119,6 +119,7 @@
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
   .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
   .kpi.rev{cursor:pointer} .kpi.rev:hover{border-color:#E0A3A0;box-shadow:0 4px 14px rgba(217,119,111,.18)}
+  .kpi.corr .n{color:var(--ok)} .kpi.corr{cursor:pointer} .kpi.corr:hover{border-color:#bbe2c6;box-shadow:0 4px 14px rgba(21,128,61,.16)}
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   /* hero: tiempo de proceso */
@@ -851,7 +852,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var tr=ev.target.closest?ev.target.closest("tbody tr"):null; if(tr) tr.classList.toggle("expand");
   });
   // clic en el KPI "a revisar" o en el anillo de confianza no-ok -> despliega y enfoca los avisos
-  $("kpis").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".kpi.rev")) abrirAvisos(); });
+  $("kpis").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".kpi.rev,.kpi.corr")) abrirAvisos(); });
   $("dash").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".clk-avisos")) abrirAvisos(); });
   function abrirAvisos(){ var w=$("avisosWrap"); if(w.classList.contains("hide")) return; w.open=true; w.scrollIntoView({behavior:"smooth",block:"center"}); }
 
@@ -926,6 +927,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var capset={}; m.forEach(function(r){ capset[(r.capitulo&&String(r.capitulo).trim())||"—"]=1; });
     var nCap=Object.keys(capset).length;
     var aRev=merged.hojas.filter(function(h){return !h.excluida && h.avisos.length;}).length;
+    var nCorr=merged.hojas.filter(function(h){return !h.excluida && h.capa3;}).length;   // hojas reparadas por la capa 3
     function kpi(n,sing,plu,cls){ return '<div class="kpi'+(cls?" "+cls:"")+'"><div class="n" data-to="'+n+'">0</div><div class="l">'+(n===1?sing:plu)+'</div></div>'; }
     var hero = (ultimoMs>0) ? ('<div class="hero-stat"><div class="hs-l"><span class="hs-ic">⚡</span><div>'+
         '<div class="hs-big">Normalizado en <span class="n" data-to="'+(ultimoMs/1000)+'" data-dec="1">0,0</span> s</div>'+
@@ -935,6 +937,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       kpi(usados,"archivo","archivos")+
       kpi(nCap,"capítulo","capítulos")+
       kpi(m.length,"partida","partidas")+
+      (nCorr?kpi(nCorr,"corrección automática","correcciones automáticas","corr"):"")+
       kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+'</div>') : "";
     animarContadores($("kpis"));
     pintarDashboard(m, merged);
