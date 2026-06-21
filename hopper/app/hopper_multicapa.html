@@ -979,10 +979,13 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
     var maxC=caps.length?caps[0][1]:1;
-    var totP=m.length||1;
+    var totP=m.length||1, nC=caps.length;
+    function lerp(a,b,t){return Math.round(a+(b-a)*t);}
+    var C0=[232,89,12], C1=[246,185,142];   // naranja intenso (más partidas) → naranja claro (menos), nunca blanco
     var barras=caps.map(function(x,i){
       var clk = x[0]!=="(sin capítulo)";
-      var col = clk ? PALETA[i%PALETA.length] : "#C9CED5";   // mismo color que el donut de arriba
+      var t = nC>1 ? i/(nC-1) : 0;          // 0 arriba (más partidas), 1 abajo (menos)
+      var col = clk ? ('rgb('+lerp(C0[0],C1[0],t)+','+lerp(C0[1],C1[1],t)+','+lerp(C0[2],C1[2],t)+')') : "#C9CED5";
       var w=Math.max(2,Math.round(100*x[1]/maxC)), pct=Math.round(100*x[1]/totP), dly=Math.min(i*25,400);
       return '<div class="caprow'+(clk?" clk":"")+'"'+(clk?' data-cap="'+esc(x[0])+'"':'')+' title="'+esc(x[0])+(clk?" · clic para filtrar la tabla":"")+'">'+
         '<span class="capdot" style="background:'+col+'"></span>'+
