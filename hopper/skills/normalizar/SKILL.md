@@ -32,6 +32,7 @@ nuevo** cuando aparece.
    ver `references/capas-y-correccion.md`).
 
 ## Referencias
+- **`references/reglas.md`** — las 27 reglas del motor en orden, en una frase cada una.
 - **`references/esquema-salida.md`** — el contrato (13 columnas, v3 con `division`).
 - **`references/familias-de-formato.md`** — familias **código**/**formato** y su huella.
 - **`references/capas-y-correccion.md`** — arquitectura por capas y las recetas de
