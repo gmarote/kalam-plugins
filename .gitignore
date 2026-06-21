@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# Snapshot local del test de regresión (recuentos derivados del corpus de cliente)
+hopper/app/.regresion-baseline.json
