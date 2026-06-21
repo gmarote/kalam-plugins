@@ -553,7 +553,13 @@
         i.confianza=Math.min(i.confianza, 0.9);
       }
     });
-    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD };
+    // ¿es un MQT del sector? Señal estructural robusta: la mejor hoja debe tener
+    // un mínimo de filas con número + unidad real (estMedidas). Un Excel ajeno
+    // (inventario, listado…) no llega. No bloquea: la UI lo usa para avisar y no
+    // fingir fiabilidad. (Calibrado: no-MQT <=3, MQT reales >=23.)
+    var maxEst=0; nombres.forEach(function(h){ var em=info[h].estMedidas||0; if(em>maxEst) maxEst=em; });
+    return { mediciones:medic, notas:notas, estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD,
+             esMQT:(maxEst>=8), mqtScore:maxEst };
   }
 
   // ---- acumular varios ficheros en una sola salida (dedup a nivel de fichero) ----
@@ -563,7 +569,7 @@
   function acumular(items){
     var claves=items.map(function(it){ return clavesDe(it.det.mediciones); });
     var n=claves.map(function(k){ return Object.keys(k).length; });
-    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:""}; });
+    var archivos=items.map(function(it){ return {nombre:it.archivo, nMed:it.det.mediciones.length, excluido:false, motivo:"", esMQT:(it.det.esMQT!==false)}; });
     for(var a=0;a<items.length;a++){
       if(n[a]===0) continue;
       for(var b=0;b<items.length;b++){
@@ -590,7 +596,9 @@
                     confianza:(inf.confianza==null?1:inf.confianza),capa3:inf.capa3||""});
       });
     });
-    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas, CANON:CANON, COSTHEAD:COSTHEAD };
+    var algunMQT=archivos.some(function(a){return !a.excluido && a.esMQT;});
+    return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas,
+             esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
