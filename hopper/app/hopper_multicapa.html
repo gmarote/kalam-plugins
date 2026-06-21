@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E8590C'/%3E%3Ctext x='16' y='23' font-family='Arial' font-size='20' font-weight='bold' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
-<title>Hopper Multicapa · Kalam</title>
+<title>Hopper · Kalam</title>
 <style>
   :root{
     --accent:#E8590C;--accent-soft:#FCEDE3;--teal:#0E7C86;--slate:#334155;
@@ -90,6 +90,7 @@
   .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
   .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
+  .kpi.rev{cursor:pointer} .kpi.rev:hover{border-color:#E0A3A0;box-shadow:0 4px 14px rgba(217,119,111,.18)}
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   /* hero: tiempo de proceso */
@@ -103,6 +104,7 @@
   /* dashboard: anillo de integridad + donut por capítulo */
   .dash{display:flex;gap:18px;margin:2px 0 6px}
   .dcard{flex:1 1 0;min-width:0;min-height:178px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 28px;display:flex;align-items:center;gap:30px;animation:fade .35s ease}
+  .dcard.clk-avisos{cursor:pointer} .dcard.clk-avisos:hover{border-color:#f0d48a;box-shadow:0 6px 18px rgba(180,83,9,.12)}
   .dcard h3{margin:0 0 8px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
   .ring-n{font:800 26px "DM Sans",sans-serif;fill:var(--ink)}
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
@@ -129,7 +131,7 @@
     <div class="logo">
       <div class="logo-mark">K</div>
       <div class="logo-txt">
-        <span class="logo-name">Kalam <span class="ver-chip">multicapa</span></span>
+        <span class="logo-name">Kalam</span>
         <span class="logo-sub">Hopper · Aplicación para la normalización de mediciones</span>
       </div>
     </div>
@@ -767,19 +769,21 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 (function(){
   var XLSX = window.XLSX, core = window.HopperCore;
   var cargados = [];   // [{archivo, det}]
+  var errores = [];    // [{nombre, motivo}] — archivos que no se pudieron cargar (no se silencian)
   var merged = null;
   var ultimoMs = 0;    // tiempo del último procesado (para el cronómetro)
   var filtro = "";     // texto del buscador (filtra la vista previa)
   var $=function(id){return document.getElementById(id);};
   function norm(s){ return String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }  // minúsculas + sin acentos
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function avisoError(e){ return '<div class="aviso" style="border-color:#e9b3b3;background:#FDEEEE"><b style="color:var(--err)">⛔ '+esc(e.nombre)+' — no se cargó</b><ul><li>'+esc(e.motivo)+'</li></ul></div>'; }
 
   var drop=$("drop"), file=$("file");
   ["dragenter","dragover"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add("over");});});
   ["dragleave","drop"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove("over");});});
   drop.addEventListener("drop",function(ev){ if(ev.dataTransfer.files.length) cargarVarios(ev.dataTransfer.files); });
   file.addEventListener("change",function(){ if(file.files.length) cargarVarios(file.files); file.value=""; });
-  $("reset").addEventListener("click",function(){ cargados=[]; merged=null; ultimoMs=0; filtro=""; if($("buscar")) $("buscar").value=""; procesando(false); recalcular(); });
+  $("reset").addEventListener("click",function(){ cargados=[]; errores=[]; merged=null; ultimoMs=0; filtro=""; if($("buscar")) $("buscar").value=""; procesando(false); recalcular(); });
   if($("buscar")){ var _bt; $("buscar").addEventListener("input",function(){ var v=this.value; clearTimeout(_bt); _bt=setTimeout(function(){ filtro=v; pintarTabla(); marcarCapActivo(); },150); }); }
   // clic en una barra del gráfico inferior -> filtra la tabla por ese capítulo (toggle)
   $("resumen").addEventListener("click",function(ev){
@@ -795,6 +799,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(window.getSelection && String(window.getSelection())) return;   // no togglear si se está seleccionando texto
     var tr=ev.target.closest?ev.target.closest("tbody tr"):null; if(tr) tr.classList.toggle("expand");
   });
+  // clic en el KPI "a revisar" o en el anillo de confianza no-ok -> despliega y enfoca los avisos
+  $("kpis").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".kpi.rev")) abrirAvisos(); });
+  $("dash").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".clk-avisos")) abrirAvisos(); });
+  function abrirAvisos(){ var w=$("avisosWrap"); if(w.classList.contains("hide")) return; w.open=true; w.scrollIntoView({behavior:"smooth",block:"center"}); }
 
   function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
 
@@ -802,15 +810,26 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   function cargarVarios(fileList){
     limpiarFiltro();
-    var arr=Array.prototype.slice.call(fileList), pend=arr.length, t0=performance.now();
-    procesando(true, "Procesando "+arr.length+" archivo"+(arr.length>1?"s":"")+"…");
+    var arr=Array.prototype.slice.call(fileList), t0=performance.now();
+    // validación: solo Excel. Lo demás (PDF, carpetas, .csv…) no se ignora: se señala.
+    var validos=[];
     arr.forEach(function(f){
+      if(/\.(xlsx|xls|xlsm)$/i.test(f.name)) validos.push(f);
+      else errores.push({nombre:f.name, motivo:"no es un Excel (.xlsx/.xls); no se procesa"});
+    });
+    if(!validos.length){ recalcular(); procesando(false); return; }
+    var pend=validos.length;
+    procesando(true, "Procesando "+validos.length+" archivo"+(validos.length>1?"s":"")+"…");
+    function fin(){ if(--pend===0){ ultimoMs=performance.now()-t0; setTimeout(function(){ recalcular(); procesando(false); }, 20); } }  // deja pintar el spinner
+    validos.forEach(function(f){
       var rd=new FileReader();
       rd.onload=function(){
         try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }catch(e){}
-        if(--pend===0){ ultimoMs=performance.now()-t0; setTimeout(function(){ recalcular(); procesando(false); }, 20); }  // deja pintar el spinner
+          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }
+        catch(e){ errores.push({nombre:f.name, motivo:"no se pudo leer ("+(e&&e.message?e.message:"archivo dañado o protegido con contraseña")+")"}); }
+        fin();
       };
+      rd.onerror=function(){ errores.push({nombre:f.name, motivo:"no se pudo leer el archivo"}); fin(); };
       rd.readAsArrayBuffer(f);
     });
   }
@@ -823,8 +842,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   function render(){
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
-      $("avisosWrap").classList.add("hide"); $("detalleWrap").classList.add("hide");
-      $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML=""; return;
+      $("detalleWrap").classList.add("hide");
+      $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
+      // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
+      if(errores.length){
+        $("avisosWrap").classList.remove("hide"); $("avisosWrap").open=true;
+        $("avisosSum").textContent = "Avisos · "+errores.length+" a revisar";
+        $("avisos").innerHTML = errores.map(avisoError).join("");
+      } else { $("avisosWrap").classList.add("hide"); }
+      return;
     }
     var m=merged.mediciones;
 
@@ -863,6 +889,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
     // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
     var av="", n=0, noFuente=merged.hojas.filter(function(h){return h.excluida && h.noFuente;}).length;
+    errores.forEach(function(e){ av+=avisoError(e); n++; });   // primero lo que no se pudo cargar
     merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — archivo descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
     merged.hojas.forEach(function(h){
       if(h.excluida && !h.noFuente){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
@@ -870,7 +897,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       else if(!h.excluida && h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
     });
     if(noFuente) av+='<div class="aviso" style="border-color:var(--line);background:var(--soft)"><b>🚫 '+noFuente+' hoja'+(noFuente>1?"s":"")+' descartada'+(noFuente>1?"s":"")+'</b> por no contener mediciones (resúmenes, índices, portadas…). Ver «Detalle por hoja».</div>';
-    $("avisosWrap").classList.toggle("hide", m.length===0);
+    $("avisosWrap").classList.toggle("hide", m.length===0 && n===0);
     $("avisosWrap").open = n>0;
     $("avisosSum").textContent = n ? ("Avisos · "+n+" a revisar") : "Avisos · todo correcto ✓";
     $("avisos").innerHTML = (n||noFuente) ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
@@ -961,8 +988,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
     var ok=(pct>=98 && aRev===0);
     var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' mediciones · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
-                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · ver avisos');
-    var ring='<div class="dcard"><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
+                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
+    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
