@@ -59,6 +59,12 @@
   .dz-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:5px}
   .dz-sub{font-size:13px;color:var(--muted)}
   .dz-pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;color:var(--teal);background:#E7F4F5;border:1px solid #cfe9eb;padding:5px 12px;border-radius:20px}
+  /* compacto: una vez hay algo cargado, la zona se colapsa a una barra de una fila */
+  .dz-compact{display:none}
+  .dropzone.compact{padding:13px 22px}
+  .dropzone.compact .dz-demo,.dropzone.compact .dz-title,.dropzone.compact .dz-sub,.dropzone.compact .dz-pill{display:none}
+  .dropzone.compact .dz-compact{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:var(--accent)}
+  .dz-compact-sub{font-weight:500;color:var(--muted);font-size:12.5px}
 
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;margin:16px 0}
   .toolbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:18px 0}
@@ -188,6 +194,7 @@
     <div class="dz-title">Arrastra aquí tus archivos MQT</div>
     <div class="dz-sub">o haz clic para seleccionarlos · puedes cargar uno o varios, se combinan en una sola tabla · admite <b>.xlsx</b> y <b>.xls</b></div>
     <span class="dz-pill">🔒 Tus datos no salen de tu ordenador: el procesamiento es local</span>
+    <div class="dz-compact">＋ Añadir más archivos MQT <span class="dz-compact-sub">· o arrastra aquí</span></div>
   </label>
 
   <div id="status" class="hide"></div>
@@ -894,8 +901,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         $("avisosSum").textContent = "Avisos · "+errores.length+" a revisar";
         $("avisos").innerHTML = errores.map(avisoError).join("");
       } else { $("avisosWrap").classList.add("hide"); }
+      drop.classList.remove("compact");   // sin nada cargado, la dropzone vuelve a su tamaño grande
       return;
     }
+    drop.classList.add("compact");        // ya hay datos: colapsa a barra de una fila
     var m=merged.mediciones;
 
     // archivos cargados
