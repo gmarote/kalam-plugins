@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E8590C'/%3E%3Ctext x='16' y='23' font-family='Arial' font-size='20' font-weight='bold' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
-<title>Hopper Multicapa · Kalam</title>
+<title>Hopper · Kalam</title>
 <style>
   :root{
     --accent:#E8590C;--accent-soft:#FCEDE3;--teal:#0E7C86;--slate:#334155;
@@ -30,13 +30,41 @@
 
   main{max-width:1280px;margin:0 auto;padding:26px 28px 60px}
 
-  .dropzone{border:1.5px dashed #D1D5DB;border-radius:var(--radius);background:#FFFFFF;box-shadow:var(--shadow);cursor:pointer;transition:all .22s ease;position:relative;overflow:hidden;display:block;padding:52px 24px;text-align:center}
-  .dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--accent-soft)}
+  /* D · hero con más presencia: zona más alta y halo sutil del acento */
+  .dropzone{border:1.5px dashed #D1D5DB;border-radius:var(--radius);background:radial-gradient(130% 130% at 50% -10%,#FFF6EF 0%,#FFFFFF 58%);box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden;display:block;padding:60px 24px;text-align:center}
+  .dropzone:hover{border-color:var(--accent)}
+  /* B · drag-over dramático: se eleva, brilla y el borde se anima (marching ants) */
+  .dropzone.over{border-color:transparent;background:var(--accent-soft);transform:translateY(-4px) scale(1.006);box-shadow:0 18px 50px rgba(232,89,12,.20)}
+  .dropzone.over::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
+    background:linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y;
+    background-size:16px 2px,16px 2px,2px 16px,2px 16px;background-position:0 0,0 100%,0 0,100% 0;animation:ants .55s linear infinite}
+  @keyframes ants{to{background-position:16px 0,-16px 100%,0 -16px,100% 16px}}
   .dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  .dz-ico{font-size:34px;display:block;margin-bottom:12px}
-  .dz-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:5px}
+  /* A · maqueta antes→después: cuenta la transformación sin haber subido nada */
+  .dz-demo{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 auto 20px;max-width:400px;animation:float 4s ease-in-out infinite}
+  .dropzone.over .dz-demo{animation:none;transform:scale(1.05)}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .dz-col{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .dz-cap{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .dzs{width:128px;border-radius:10px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:5px}
+  .dzs-msgy{transform:rotate(-2deg);background:#FBFBFC}
+  .dzs-msgy .r{height:7px;border-radius:3px;background:#E1E4E9}
+  .dzs-msgy .r.merge{background:#CFD4DA;width:100%}
+  .dzs-clean .hd{height:9px;border-radius:3px;background:linear-gradient(90deg,var(--accent),#F2935A)}
+  .dzs-clean .row{height:7px;border-radius:3px;background:#EEF1F4}
+  .dzs-clean .row.alt{background:#F6F8FA}
+  .dz-arrow{font-size:22px;color:var(--accent);font-weight:800;flex:none;animation:nudge 1.6s ease-in-out infinite}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+  @media(prefers-reduced-motion:reduce){.dz-demo,.dz-arrow{animation:none}.capfill{transition:none}}
+  .dz-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:5px}
   .dz-sub{font-size:13px;color:var(--muted)}
   .dz-pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;color:var(--teal);background:#E7F4F5;border:1px solid #cfe9eb;padding:5px 12px;border-radius:20px}
+  /* compacto: una vez hay algo cargado, la zona se colapsa a una barra de una fila */
+  .dz-compact{display:none}
+  .dropzone.compact{padding:13px 22px}
+  .dropzone.compact .dz-demo,.dropzone.compact .dz-title,.dropzone.compact .dz-sub,.dropzone.compact .dz-pill{display:none}
+  .dropzone.compact .dz-compact{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:var(--accent)}
+  .dz-compact-sub{font-weight:500;color:var(--muted);font-size:12.5px}
 
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;margin:16px 0}
   .toolbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:18px 0}
@@ -76,20 +104,24 @@
   .farchivo .nom{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .farchivo .cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
   .farchivo .dup{color:var(--warn);font-weight:600}
-  .capwrap{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);padding:12px 16px;max-height:360px;overflow:auto}
-  .caprow{display:flex;align-items:center;gap:12px;padding:4px 8px;margin:0 -8px;border-radius:8px;font-size:12.5px;transition:background .12s}
+  .capwrap{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);padding:10px 16px;max-height:360px;overflow:auto}
+  .caprow{display:flex;align-items:center;gap:13px;padding:6px 8px;margin:0 -8px;border-radius:10px;font-size:12.5px;transition:background .12s}
   .caprow.clk{cursor:pointer}
-  .caprow.clk:hover{background:var(--accent-soft)}
+  .caprow.clk:hover{background:var(--soft)}
   .caprow.activo{background:var(--accent-soft)} .caprow.activo .capn{color:var(--accent);font-weight:700}
-  .capn{flex:0 0 230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
-  .capbar{flex:1;height:15px;background:var(--soft);border-radius:8px;overflow:hidden;min-width:90px}
-  .capfill{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#F2935A);border-radius:8px;transition:width .5s ease}
-  .capc{flex:0 0 60px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
+  .capdot{width:9px;height:9px;border-radius:3px;flex:none}
+  .capn{flex:0 0 210px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-weight:600}
+  .capbar{flex:1;height:10px;background:var(--soft);border-radius:6px;overflow:hidden;min-width:80px}
+  .capfill{display:block;height:100%;border-radius:6px;transition:width .7s cubic-bezier(.22,1,.36,1)}
+  .capc{flex:0 0 92px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
+  .capc .pct{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:6px}
   .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
-  .kpi{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
+  .kpi{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
   .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
   .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
+  .kpi.rev{cursor:pointer} .kpi.rev:hover{border-color:#E0A3A0;box-shadow:0 4px 14px rgba(217,119,111,.18)}
+  .kpi.corr .n{color:var(--ok)} .kpi.corr{cursor:pointer} .kpi.corr:hover{border-color:#bbe2c6;box-shadow:0 4px 14px rgba(21,128,61,.16)}
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   /* hero: tiempo de proceso */
@@ -103,6 +135,7 @@
   /* dashboard: anillo de integridad + donut por capítulo */
   .dash{display:flex;gap:18px;margin:2px 0 6px}
   .dcard{flex:1 1 0;min-width:0;min-height:178px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 28px;display:flex;align-items:center;gap:30px;animation:fade .35s ease}
+  .dcard.clk-avisos{cursor:pointer} .dcard.clk-avisos:hover{border-color:#f0d48a;box-shadow:0 6px 18px rgba(180,83,9,.12)}
   .dcard h3{margin:0 0 8px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
   .ring-n{font:800 26px "DM Sans",sans-serif;fill:var(--ink)}
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
@@ -129,8 +162,8 @@
     <div class="logo">
       <div class="logo-mark">K</div>
       <div class="logo-txt">
-        <span class="logo-name">Kalam <span class="ver-chip">multicapa</span></span>
-        <span class="logo-sub">Hopper · Aplicación para la normalización de mediciones</span>
+        <span class="logo-name">Kalam</span>
+        <span class="logo-sub" title="MQT · Mapa de Quantidades de Trabalho (mediciones)">Hopper · Aplicación para normalizar archivos MQT</span>
       </div>
     </div>
   </div>
@@ -138,10 +171,33 @@
 <main>
   <label class="dropzone" id="drop">
     <input type="file" id="file" accept=".xlsx,.xls" multiple>
-    <span class="dz-ico">📐</span>
-    <div class="dz-title">Arrastra aquí tus ficheros de mediciones</div>
+    <div class="dz-demo" aria-hidden="true">
+      <div class="dz-col">
+        <div class="dzs dzs-msgy">
+          <span class="r" style="width:70%"></span>
+          <span class="r" style="width:92%;margin-left:8%"></span>
+          <span class="r merge"></span>
+          <span class="r" style="width:48%"></span>
+          <span class="r" style="width:82%;margin-left:6%"></span>
+        </div>
+        <span class="dz-cap">MQT en bruto</span>
+      </div>
+      <span class="dz-arrow">→</span>
+      <div class="dz-col">
+        <div class="dzs dzs-clean">
+          <span class="hd"></span>
+          <span class="row"></span>
+          <span class="row alt"></span>
+          <span class="row"></span>
+          <span class="row alt"></span>
+        </div>
+        <span class="dz-cap">Tabla normalizada</span>
+      </div>
+    </div>
+    <div class="dz-title">Arrastra aquí tus archivos MQT</div>
     <div class="dz-sub">o haz clic para seleccionarlos · puedes cargar uno o varios, se combinan en una sola tabla · admite <b>.xlsx</b> y <b>.xls</b></div>
     <span class="dz-pill">🔒 Tus datos no salen de tu ordenador: el procesamiento es local</span>
+    <div class="dz-compact">＋ Añadir más archivos MQT <span class="dz-compact-sub">· o arrastra aquí</span></div>
   </label>
 
   <div id="status" class="hide"></div>
@@ -767,19 +823,21 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 (function(){
   var XLSX = window.XLSX, core = window.HopperCore;
   var cargados = [];   // [{archivo, det}]
+  var errores = [];    // [{nombre, motivo}] — archivos que no se pudieron cargar (no se silencian)
   var merged = null;
   var ultimoMs = 0;    // tiempo del último procesado (para el cronómetro)
   var filtro = "";     // texto del buscador (filtra la vista previa)
   var $=function(id){return document.getElementById(id);};
   function norm(s){ return String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }  // minúsculas + sin acentos
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function avisoError(e){ return '<div class="aviso" style="border-color:#e9b3b3;background:#FDEEEE"><b style="color:var(--err)">⛔ '+esc(e.nombre)+' — no se cargó</b><ul><li>'+esc(e.motivo)+'</li></ul></div>'; }
 
   var drop=$("drop"), file=$("file");
   ["dragenter","dragover"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add("over");});});
   ["dragleave","drop"].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove("over");});});
   drop.addEventListener("drop",function(ev){ if(ev.dataTransfer.files.length) cargarVarios(ev.dataTransfer.files); });
   file.addEventListener("change",function(){ if(file.files.length) cargarVarios(file.files); file.value=""; });
-  $("reset").addEventListener("click",function(){ cargados=[]; merged=null; ultimoMs=0; filtro=""; if($("buscar")) $("buscar").value=""; procesando(false); recalcular(); });
+  $("reset").addEventListener("click",function(){ cargados=[]; errores=[]; merged=null; ultimoMs=0; filtro=""; if($("buscar")) $("buscar").value=""; procesando(false); recalcular(); });
   if($("buscar")){ var _bt; $("buscar").addEventListener("input",function(){ var v=this.value; clearTimeout(_bt); _bt=setTimeout(function(){ filtro=v; pintarTabla(); marcarCapActivo(); },150); }); }
   // clic en una barra del gráfico inferior -> filtra la tabla por ese capítulo (toggle)
   $("resumen").addEventListener("click",function(ev){
@@ -795,6 +853,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(window.getSelection && String(window.getSelection())) return;   // no togglear si se está seleccionando texto
     var tr=ev.target.closest?ev.target.closest("tbody tr"):null; if(tr) tr.classList.toggle("expand");
   });
+  // clic en el KPI "a revisar" o en el anillo de confianza no-ok -> despliega y enfoca los avisos
+  $("kpis").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".kpi.rev,.kpi.corr")) abrirAvisos(); });
+  $("dash").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".clk-avisos")) abrirAvisos(); });
+  function abrirAvisos(){ var w=$("avisosWrap"); if(w.classList.contains("hide")) return; w.open=true; w.scrollIntoView({behavior:"smooth",block:"center"}); }
 
   function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
 
@@ -802,15 +864,26 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   function cargarVarios(fileList){
     limpiarFiltro();
-    var arr=Array.prototype.slice.call(fileList), pend=arr.length, t0=performance.now();
-    procesando(true, "Procesando "+arr.length+" archivo"+(arr.length>1?"s":"")+"…");
+    var arr=Array.prototype.slice.call(fileList), t0=performance.now();
+    // validación: solo Excel. Lo demás (PDF, carpetas, .csv…) no se ignora: se señala.
+    var validos=[];
     arr.forEach(function(f){
+      if(/\.(xlsx|xls|xlsm)$/i.test(f.name)) validos.push(f);
+      else errores.push({nombre:f.name, motivo:"no es un Excel (.xlsx/.xls); no se procesa"});
+    });
+    if(!validos.length){ recalcular(); procesando(false); return; }
+    var pend=validos.length;
+    procesando(true, "Procesando "+validos.length+" archivo"+(validos.length>1?"s":"")+"…");
+    function fin(){ if(--pend===0){ ultimoMs=performance.now()-t0; setTimeout(function(){ recalcular(); procesando(false); }, 20); } }  // deja pintar el spinner
+    validos.forEach(function(f){
       var rd=new FileReader();
       rd.onload=function(){
         try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }catch(e){}
-        if(--pend===0){ ultimoMs=performance.now()-t0; setTimeout(function(){ recalcular(); procesando(false); }, 20); }  // deja pintar el spinner
+          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }
+        catch(e){ errores.push({nombre:f.name, motivo:"no se pudo leer ("+(e&&e.message?e.message:"archivo dañado o protegido con contraseña")+")"}); }
+        fin();
       };
+      rd.onerror=function(){ errores.push({nombre:f.name, motivo:"no se pudo leer el archivo"}); fin(); };
       rd.readAsArrayBuffer(f);
     });
   }
@@ -823,9 +896,18 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   function render(){
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
-      $("avisosWrap").classList.add("hide"); $("detalleWrap").classList.add("hide");
-      $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML=""; return;
+      $("detalleWrap").classList.add("hide");
+      $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
+      // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
+      if(errores.length){
+        $("avisosWrap").classList.remove("hide"); $("avisosWrap").open=true;
+        $("avisosSum").textContent = "Avisos · "+errores.length+" a revisar";
+        $("avisos").innerHTML = errores.map(avisoError).join("");
+      } else { $("avisosWrap").classList.add("hide"); }
+      drop.classList.remove("compact");   // sin nada cargado, la dropzone vuelve a su tamaño grande
+      return;
     }
+    drop.classList.add("compact");        // ya hay datos: colapsa a barra de una fila
     var m=merged.mediciones;
 
     // archivos cargados
@@ -843,26 +925,32 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
       usados+" archivo"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
-    // tarjetas KPI (orden jerárquico: archivo › capítulo › partida › a revisar)
+    // tarjetas KPI en dos grupos: izquierda = proceso/fiabilidad (se corresponde con
+    // el anillo de confianza de abajo); derecha = salida (con el donut de capítulos).
     var capset={}; m.forEach(function(r){ capset[(r.capitulo&&String(r.capitulo).trim())||"—"]=1; });
     var nCap=Object.keys(capset).length;
+    var nHojas=merged.hojas.filter(function(h){return !h.excluida;}).length;
     var aRev=merged.hojas.filter(function(h){return !h.excluida && h.avisos.length;}).length;
+    var nCorr=merged.hojas.filter(function(h){return !h.excluida && h.capa3;}).length;   // hojas reparadas por la capa 3
     function kpi(n,sing,plu,cls){ return '<div class="kpi'+(cls?" "+cls:"")+'"><div class="n" data-to="'+n+'">0</div><div class="l">'+(n===1?sing:plu)+'</div></div>'; }
     var hero = (ultimoMs>0) ? ('<div class="hero-stat"><div class="hs-l"><span class="hs-ic">⚡</span><div>'+
         '<div class="hs-big">Normalizado en <span class="n" data-to="'+(ultimoMs/1000)+'" data-dec="1">0,0</span> s</div>'+
         '<div class="hs-sub">frente a días de trabajo manual</div></div></div>'+
-        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> mediciones<br>en '+merged.hojas.filter(function(h){return !h.excluida;}).length+' hojas</div></div>') : "";
+        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> mediciones<br>en '+nHojas+' hojas</div></div>') : "";
     $("kpis").innerHTML = m.length ? (hero+'<div class="kpis">'+
       kpi(usados,"archivo","archivos")+
+      kpi(nHojas,"hoja procesada","hojas procesadas")+
+      (nCorr?kpi(nCorr,"corrección automática","correcciones automáticas","corr"):"")+
+      kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+
       kpi(nCap,"capítulo","capítulos")+
-      kpi(m.length,"partida","partidas")+
-      kpi(aRev,"hoja a revisar","hojas a revisar",aRev>0?"rev":"")+'</div>') : "";
+      kpi(m.length,"partida","partidas")+'</div>') : "";
     animarContadores($("kpis"));
     pintarDashboard(m, merged);
 
     // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
     // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
     var av="", n=0, noFuente=merged.hojas.filter(function(h){return h.excluida && h.noFuente;}).length;
+    errores.forEach(function(e){ av+=avisoError(e); n++; });   // primero lo que no se pudo cargar
     merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — archivo descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
     merged.hojas.forEach(function(h){
       if(h.excluida && !h.noFuente){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
@@ -870,7 +958,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       else if(!h.excluida && h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
     });
     if(noFuente) av+='<div class="aviso" style="border-color:var(--line);background:var(--soft)"><b>🚫 '+noFuente+' hoja'+(noFuente>1?"s":"")+' descartada'+(noFuente>1?"s":"")+'</b> por no contener mediciones (resúmenes, índices, portadas…). Ver «Detalle por hoja».</div>';
-    $("avisosWrap").classList.toggle("hide", m.length===0);
+    $("avisosWrap").classList.toggle("hide", m.length===0 && n===0);
     $("avisosWrap").open = n>0;
     $("avisosSum").textContent = n ? ("Avisos · "+n+" a revisar") : "Avisos · todo correcto ✓";
     $("avisos").innerHTML = (n||noFuente) ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
@@ -894,14 +982,22 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
     var maxC=caps.length?caps[0][1]:1;
-    var barras=caps.map(function(x){
+    var totP=m.length||1, nC=caps.length;
+    function lerp(a,b,t){return Math.round(a+(b-a)*t);}
+    var C0=[232,89,12], C1=[246,185,142];   // naranja intenso (más partidas) → naranja claro (menos), nunca blanco
+    var barras=caps.map(function(x,i){
       var clk = x[0]!=="(sin capítulo)";
+      var t = nC>1 ? i/(nC-1) : 0;          // 0 arriba (más partidas), 1 abajo (menos)
+      var col = clk ? ('rgb('+lerp(C0[0],C1[0],t)+','+lerp(C0[1],C1[1],t)+','+lerp(C0[2],C1[2],t)+')') : "#C9CED5";
+      var w=Math.max(2,Math.round(100*x[1]/maxC)), pct=Math.round(100*x[1]/totP), dly=Math.min(i*25,400);
       return '<div class="caprow'+(clk?" clk":"")+'"'+(clk?' data-cap="'+esc(x[0])+'"':'')+' title="'+esc(x[0])+(clk?" · clic para filtrar la tabla":"")+'">'+
+        '<span class="capdot" style="background:'+col+'"></span>'+
         '<span class="capn">'+esc(x[0])+'</span>'+
-        '<span class="capbar"><span class="capfill" style="width:'+Math.max(3,Math.round(100*x[1]/maxC))+'%"></span></span>'+
-        '<span class="capc">'+x[1]+'</span></div>';
+        '<span class="capbar"><span class="capfill" data-w="'+w+'%" style="width:0;background:'+col+';transition-delay:'+dly+'ms"></span></span>'+
+        '<span class="capc">'+x[1].toLocaleString("pt-PT")+'<span class="pct">'+pct+'%</span></span></div>';
     }).join("");
-    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length+' partidas <span class="muted" style="font-weight:400">· clic para filtrar</span></h2><div class="capwrap">'+barras+'</div>') : "";
+    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length.toLocaleString("pt-PT")+' partidas <span class="muted" style="font-weight:400">· clic para filtrar</span></h2><div class="capwrap">'+barras+'</div>') : "";
+    requestAnimationFrame(function(){ Array.prototype.forEach.call($("resumen").querySelectorAll(".capfill"),function(el){ el.style.width=el.getAttribute("data-w"); }); });   // dispara el llenado
     marcarCapActivo();
   }
 
@@ -961,8 +1057,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
     var ok=(pct>=98 && aRev===0);
     var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' mediciones · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
-                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · ver avisos');
-    var ring='<div class="dcard"><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
+                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
+    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
