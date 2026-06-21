@@ -55,7 +55,7 @@
   .dzs-clean .row.alt{background:#F6F8FA}
   .dz-arrow{font-size:22px;color:var(--accent);font-weight:800;flex:none;animation:nudge 1.6s ease-in-out infinite}
   @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
-  @media(prefers-reduced-motion:reduce){.dz-demo,.dz-arrow{animation:none}}
+  @media(prefers-reduced-motion:reduce){.dz-demo,.dz-arrow{animation:none}.capfill{transition:none}}
   .dz-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:5px}
   .dz-sub{font-size:13px;color:var(--muted)}
   .dz-pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;color:var(--teal);background:#E7F4F5;border:1px solid #cfe9eb;padding:5px 12px;border-radius:20px}
@@ -104,15 +104,17 @@
   .farchivo .nom{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .farchivo .cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
   .farchivo .dup{color:var(--warn);font-weight:600}
-  .capwrap{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);padding:12px 16px;max-height:360px;overflow:auto}
-  .caprow{display:flex;align-items:center;gap:12px;padding:4px 8px;margin:0 -8px;border-radius:8px;font-size:12.5px;transition:background .12s}
+  .capwrap{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);padding:10px 16px;max-height:360px;overflow:auto}
+  .caprow{display:flex;align-items:center;gap:13px;padding:6px 8px;margin:0 -8px;border-radius:10px;font-size:12.5px;transition:background .12s}
   .caprow.clk{cursor:pointer}
-  .caprow.clk:hover{background:var(--accent-soft)}
+  .caprow.clk:hover{background:var(--soft)}
   .caprow.activo{background:var(--accent-soft)} .caprow.activo .capn{color:var(--accent);font-weight:700}
-  .capn{flex:0 0 230px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
-  .capbar{flex:1;height:15px;background:var(--soft);border-radius:8px;overflow:hidden;min-width:90px}
-  .capfill{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#F2935A);border-radius:8px;transition:width .5s ease}
-  .capc{flex:0 0 60px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
+  .capdot{width:9px;height:9px;border-radius:3px;flex:none}
+  .capn{flex:0 0 210px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-weight:600}
+  .capbar{flex:1;height:10px;background:var(--soft);border-radius:6px;overflow:hidden;min-width:80px}
+  .capfill{display:block;height:100%;border-radius:6px;transition:width .7s cubic-bezier(.22,1,.36,1)}
+  .capc{flex:0 0 92px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
+  .capc .pct{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:6px}
   .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
   .kpi{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
   .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
@@ -977,14 +979,19 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
     var maxC=caps.length?caps[0][1]:1;
-    var barras=caps.map(function(x){
+    var totP=m.length||1;
+    var barras=caps.map(function(x,i){
       var clk = x[0]!=="(sin capítulo)";
+      var col = clk ? PALETA[i%PALETA.length] : "#C9CED5";   // mismo color que el donut de arriba
+      var w=Math.max(2,Math.round(100*x[1]/maxC)), pct=Math.round(100*x[1]/totP), dly=Math.min(i*25,400);
       return '<div class="caprow'+(clk?" clk":"")+'"'+(clk?' data-cap="'+esc(x[0])+'"':'')+' title="'+esc(x[0])+(clk?" · clic para filtrar la tabla":"")+'">'+
+        '<span class="capdot" style="background:'+col+'"></span>'+
         '<span class="capn">'+esc(x[0])+'</span>'+
-        '<span class="capbar"><span class="capfill" style="width:'+Math.max(3,Math.round(100*x[1]/maxC))+'%"></span></span>'+
-        '<span class="capc">'+x[1]+'</span></div>';
+        '<span class="capbar"><span class="capfill" data-w="'+w+'%" style="width:0;background:'+col+';transition-delay:'+dly+'ms"></span></span>'+
+        '<span class="capc">'+x[1].toLocaleString("pt-PT")+'<span class="pct">'+pct+'%</span></span></div>';
     }).join("");
-    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length+' partidas <span class="muted" style="font-weight:400">· clic para filtrar</span></h2><div class="capwrap">'+barras+'</div>') : "";
+    $("resumen").innerHTML = caps.length ? ('<h2 class="sec">Resumen por capítulo · '+caps.length+' capítulo'+(caps.length>1?"s":"")+' · '+m.length.toLocaleString("pt-PT")+' partidas <span class="muted" style="font-weight:400">· clic para filtrar</span></h2><div class="capwrap">'+barras+'</div>') : "";
+    requestAnimationFrame(function(){ Array.prototype.forEach.call($("resumen").querySelectorAll(".capfill"),function(el){ el.style.width=el.getAttribute("data-w"); }); });   // dispara el llenado
     marcarCapActivo();
   }
 
