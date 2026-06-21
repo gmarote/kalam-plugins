@@ -233,6 +233,7 @@
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -272,15 +273,18 @@
         continue;
       }
       var nivel = code.split(".").length;
-      if(qty!==null && unit){
+      var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
+      if(qty!==null && unitEff){
         stats.partida++;
         var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
-          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unit,medicion:qty}));
+          ruta:Jp.ruta,codigo:code,partida:desc,unidad:unitEff,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:qty});
+        pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
       } else {
+        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
+        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
