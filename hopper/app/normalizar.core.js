@@ -760,9 +760,27 @@
     });
     return est;
   }
+  // construye la lista de títulos final para la revisión: aplica las ediciones por-título
+  // (clave "fila_nivelOriginal" -> nuevoNivel; -1 = descartar) y, si la hoja se designa como
+  // un nivel (hojaNivel 0/1/2 con su nombre), inserta ese título arriba y DESPLAZA todo el
+  // árbol interno para hacerle sitio ("la hoja es capítulo" => los capítulos bajan a subcapítulo).
+  function construirTitulos(base, edits, hojaTexto, hojaNivel){
+    edits=edits||{};
+    var lst=(base||[]).map(function(t){ var ek=t.fila+"_"+t.nivel, nv=(edits[ek]!=null?edits[ek]:t.nivel); return {fila:t.fila, texto:t.texto, nivel:nv}; })
+                      .filter(function(t){ return t.nivel>=0; });
+    if(hojaNivel!=null && txt(hojaTexto)){
+      var min=Infinity, minFila=Infinity;
+      lst.forEach(function(t){ if(txt(t.texto)){ if(t.nivel<min) min=t.nivel; if(t.fila<minFila) minFila=t.fila; } });
+      if(!isFinite(min)) min=1; if(!isFinite(minFila)) minFila=1;
+      var shift=(hojaNivel+1)-min;                                    // el nivel más alto interno pasa a estar justo bajo la hoja
+      lst=lst.map(function(t){ return {fila:t.fila, texto:t.texto, nivel:Math.max(0,Math.min(3,t.nivel+shift))}; });
+      lst.unshift({fila:minFila-1, texto:hojaTexto, nivel:hojaNivel});
+    }
+    return lst;
+  }
 
   var API={CANON:CANON,COSTHEAD:COSTHEAD,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
            aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;

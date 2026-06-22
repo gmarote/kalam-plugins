@@ -135,7 +135,9 @@
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
   /* revisión de jerarquía */
   .jer-hoja{margin:0 0 14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
-  .jer-hoja>h4{margin:0;padding:9px 13px;background:var(--soft);font-size:12.5px;font-weight:700;color:var(--slate);border-bottom:1px solid var(--line)}
+  .jer-hoja>h4{margin:0;padding:8px 13px;background:var(--soft);font-size:12.5px;font-weight:700;color:var(--slate);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .jer-hsel{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .jer-hsel select{font:inherit;font-size:11.5px;padding:2px 5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
   .jer-list{padding:6px 0}
   .jer-row{display:flex;align-items:center;gap:10px;padding:3px 13px}
   .jer-row:hover{background:var(--accent-soft)}
@@ -1045,9 +1047,27 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     });
     return est;
   }
+  // construye la lista de títulos final para la revisión: aplica las ediciones por-título
+  // (clave "fila_nivelOriginal" -> nuevoNivel; -1 = descartar) y, si la hoja se designa como
+  // un nivel (hojaNivel 0/1/2 con su nombre), inserta ese título arriba y DESPLAZA todo el
+  // árbol interno para hacerle sitio ("la hoja es capítulo" => los capítulos bajan a subcapítulo).
+  function construirTitulos(base, edits, hojaTexto, hojaNivel){
+    edits=edits||{};
+    var lst=(base||[]).map(function(t){ var ek=t.fila+"_"+t.nivel, nv=(edits[ek]!=null?edits[ek]:t.nivel); return {fila:t.fila, texto:t.texto, nivel:nv}; })
+                      .filter(function(t){ return t.nivel>=0; });
+    if(hojaNivel!=null && txt(hojaTexto)){
+      var min=Infinity, minFila=Infinity;
+      lst.forEach(function(t){ if(txt(t.texto)){ if(t.nivel<min) min=t.nivel; if(t.fila<minFila) minFila=t.fila; } });
+      if(!isFinite(min)) min=1; if(!isFinite(minFila)) minFila=1;
+      var shift=(hojaNivel+1)-min;                                    // el nivel más alto interno pasa a estar justo bajo la hoja
+      lst=lst.map(function(t){ return {fila:t.fila, texto:t.texto, nivel:Math.max(0,Math.min(3,t.nivel+shift))}; });
+      lst.unshift({fila:minFila-1, texto:hojaTexto, nivel:hojaNivel});
+    }
+    return lst;
+  }
 
   var API={CANON:CANON,COSTHEAD:COSTHEAD,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
            aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
@@ -1133,6 +1153,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // ---- revisión de jerarquía: enseña los títulos detectados y deja recolocar su nivel ----
   var jerEdits = {};                                   // "fi␁hoja" -> { fila: nuevoNivel }  (-1 = no es título)
   function jerKey(fi,h){ return fi+""+h; }
+  var jerHoja = {};                                    // jerKey -> nivel que representa la hoja (0/1/2) o undefined
   function renderJerarquia(){
     var html="", hay=false;
     cargados.forEach(function(c, fi){
@@ -1141,7 +1162,14 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         var tit=(inf.titulos||[]).filter(function(t){ return t.nivel<=2 && (t.texto||"").trim(); });
         if(!tit.length) return;
         hay=true;
-        html+='<div class="jer-hoja"><h4>'+(cargados.length>1?esc(c.archivo)+" › ":"")+esc(h)+'</h4><div class="jer-list">';
+        var hn=jerHoja[jerKey(fi,h)];
+        html+='<div class="jer-hoja"><h4>'+(cargados.length>1?esc(c.archivo)+" › ":"")+esc(h)+
+          '<span class="jer-hsel">La hoja es <select class="jer-hoja-sel" data-fi="'+fi+'" data-h="'+esc(h)+'">'+
+            '<option value=""'+(hn==null?" selected":"")+'>— (no añadir)</option>'+
+            '<option value="0"'+(hn===0?" selected":"")+'>División</option>'+
+            '<option value="1"'+(hn===1?" selected":"")+'>Capítulo</option>'+
+            '<option value="2"'+(hn===2?" selected":"")+'>Subcapítulo</option>'+
+          '</select></span></h4><div class="jer-list">';
         tit.forEach(function(t){
           var ed=jerEdits[jerKey(fi,h)]||{}, ek=t.fila+"_"+t.nivel, niv=(ed[ek]!=null?ed[ek]:t.nivel), ch=(ed[ek]!=null&&ed[ek]!==t.nivel);
           html+='<div class="jer-row'+(ch?" changed":"")+'" data-niv="'+t.nivel+'" data-fi="'+fi+'" data-h="'+esc(h)+'" data-fila="'+t.fila+'" data-orig="'+t.nivel+'">'+
@@ -1161,10 +1189,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("jerarquiaWrap").classList.remove("hide");
     jerInfo();
   }
-  function jerInfo(){ var n=0; Object.keys(jerEdits).forEach(function(k){ n+=Object.keys(jerEdits[k]).length; });
-    $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+" sin aplicar") : ""; }
+  function jerCambios(){ var n=0; Object.keys(jerEdits).forEach(function(k){ n+=Object.keys(jerEdits[k]).length; }); n+=Object.keys(jerHoja).length; return n; }
+  function jerInfo(){ var n=jerCambios(); $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+" sin aplicar") : ""; }
   $("jerarquia").addEventListener("change", function(ev){
     var sel=ev.target; if(sel.tagName!=="SELECT") return;
+    if(sel.classList.contains("jer-hoja-sel")){            // selector "La hoja es…"
+      var fi=+sel.getAttribute("data-fi"), h=sel.getAttribute("data-h"), k=jerKey(fi,h);
+      if(sel.value==="") delete jerHoja[k]; else jerHoja[k]=+sel.value;
+      jerInfo(); return;
+    }
     var row=sel.closest(".jer-row"), fi=+row.getAttribute("data-fi"), h=row.getAttribute("data-h");
     var fila=+row.getAttribute("data-fila"), orig=+row.getAttribute("data-orig"), val=+sel.value, k=jerKey(fi,h), ek=fila+"_"+orig;
     jerEdits[k]=jerEdits[k]||{};
@@ -1173,27 +1206,27 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     jerInfo();
   });
   $("jerAplicar").addEventListener("click", function(){
-    if(!Object.keys(jerEdits).length){ $("jerInfo").textContent="Sin cambios que aplicar"; return; }
+    if(!jerCambios()){ $("jerInfo").textContent="Sin cambios que aplicar"; return; }
     cargados.forEach(function(c, fi){
       var tocada=false;
       Object.keys(c.det.info).forEach(function(h){
-        var ed=jerEdits[jerKey(fi,h)]; if(!ed) return; tocada=true;
-        var tit2=(c.det.info[h].titulos||[]).map(function(t){ var ek=t.fila+"_"+t.nivel; return {fila:t.fila, texto:t.texto, nivel:(ed[ek]!=null?ed[ek]:t.nivel)}; })
-                                            .filter(function(t){ return t.nivel>=0; });   // "no es título" se descarta
+        var k=jerKey(fi,h), ed=jerEdits[k], hn=jerHoja[k];
+        if(!ed && hn==null) return; tocada=true;
+        var fin=core.construirTitulos(c.det.info[h].titulos||[], ed||{}, h, hn);
         var part=c.det.mediciones.filter(function(r){ return r.hoja===h; });
-        core.aplicarTitulos(part, tit2, 2);
+        core.aplicarTitulos(part, fin, hn!=null?3:2);                            // si se añade la hoja como nivel, se reescribe hasta sección
       });
       if(tocada){
-        c.det.estructura=core.estDesdeMed(c.det.mediciones);                    // regenera la hoja de costes
+        c.det.estructura=core.estDesdeMed(c.det.mediciones);                     // regenera la hoja de costes
         Object.keys(c.det.info).forEach(function(h){ if(!c.det.info[h].excluida) c.det.info[h].titulos=core.titulosDeMed(c.det.mediciones.filter(function(r){return r.hoja===h;})); });
       }
     });
-    jerEdits={};                                                                // lo aplicado pasa a ser la nueva base
+    jerEdits={}; jerHoja={};                                                     // lo aplicado pasa a ser la nueva base
     recalcular();
     $("jerarquiaWrap").open=true; $("jerInfo").textContent="✓ Cambios aplicados";
   });
   $("jerReset").addEventListener("click", function(){
-    jerEdits={};
+    jerEdits={}; jerHoja={};
     cargados.forEach(function(c){ if(c.wb) c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); });   // re-normaliza desde el original
     recalcular();
     $("jerarquiaWrap").open=true; $("jerInfo").textContent="↺ Restaurado a automático";
