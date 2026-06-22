@@ -12,8 +12,7 @@
     --bg:#FFFFFF;--panel:#FFFFFF;--soft:#F6F7F9;--line:#ECEEF1;
     --radius:16px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05);
     --ok:#15803D;--ok-soft:#E7F3EC;--warn:#B45309;--warn-soft:#FFFBEB;--err:#B91C1C;
-    --grad1:rgba(232,89,12,.07);--grad2:rgba(14,124,134,.05);   /* malla de fondo */
-    --glass:rgba(255,255,255,.74);--hair:#f3f4f6;
+    --hair:#f3f4f6;
   }
   body.dark{
     --accent:#F2772E;--accent-soft:#2C1A0E;--teal:#3BB7C2;--slate:#C2CAD3;
@@ -21,15 +20,12 @@
     --bg:#0E1116;--panel:#171B22;--soft:#161A20;--line:#2A313B;
     --shadow:0 1px 2px rgba(0,0,0,.30),0 12px 30px rgba(0,0,0,.38);
     --ok:#4ADE80;--ok-soft:#16271C;--warn:#FBBF24;--warn-soft:#2A2110;--err:#F87171;
-    --grad1:rgba(242,119,46,.12);--grad2:rgba(59,183,194,.09);
-    --glass:rgba(23,27,34,.66);--hair:#242b34;
+    --hair:#242b34;
   }
   *{box-sizing:border-box}
-  body{font:14px/1.55 "DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;
-    background:radial-gradient(60% 55% at 10% -8%, var(--grad1) 0%, transparent 60%),radial-gradient(55% 50% at 100% 0%, var(--grad2) 0%, transparent 55%),var(--soft);
-    background-attachment:fixed;transition:background-color .35s ease,color .35s ease}
+  body{font:14px/1.55 "DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;background:var(--soft);transition:background-color .35s ease,color .35s ease;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
-  header.hero{background:linear-gradient(180deg,#FFFFFF 0%,#FBFBFC 100%);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;backdrop-filter:saturate(1.1) blur(6px)}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
   .hero-in{max-width:1280px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;gap:18px}
   .logo{display:flex;align-items:center;gap:12px;min-width:0}
   .logo-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent) 0%,#F08C3C 100%);box-shadow:0 4px 12px rgba(232,89,12,.30);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex:none}
@@ -129,8 +125,8 @@
   .capc{flex:0 0 92px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--slate)}
   .capc .pct{font-weight:500;color:var(--faint);font-size:11.5px;margin-left:6px}
   .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
-  .kpi{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
-  .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
+  .kpi{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px}
+  .kpi .n{font-size:27px;font-weight:700;letter-spacing:-.6px;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
   .kpi .l{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
   .kpi .n{color:var(--ink)} .kpi.rev .n{color:#D9776F}   /* todo negro salvo "a revisar" en rojo pastel */
   .kpi.rev{cursor:pointer} .kpi.rev:hover{border-color:#E0A3A0;box-shadow:0 4px 14px rgba(217,119,111,.18)}
@@ -141,7 +137,7 @@
   .hero-stat{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(120deg,var(--accent-soft) 0%,var(--panel) 62%);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 22px;margin:4px 0 14px}
   .hs-l{display:flex;align-items:center;gap:14px}
   .hs-ic{font-size:28px;line-height:1}
-  .hs-big{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.4px}
+  .hs-big{font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.4px}
   .hs-big .n{color:var(--accent)}
   .hs-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
   .hs-r{font-size:13px;color:var(--slate);font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
@@ -152,7 +148,7 @@
   .dcard h3{margin:0 0 8px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
   .dcard.nomqt{border-color:#f0d48a;background:var(--warn-soft)} .dcard.nomqt h3{color:var(--warn)} .dcard.nomqt .ic{font-size:46px;line-height:1;flex:none}
   .farchivo .nomqt{color:var(--warn);font-weight:600;background:var(--warn-soft);border:1px solid #f0d48a;border-radius:20px;padding:1px 9px;font-size:11.5px;white-space:nowrap}
-  .ring-n{font:800 26px "DM Sans",sans-serif;fill:var(--ink)}
+  .ring-n{font:700 26px "DM Sans",sans-serif;fill:var(--ink)}
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
   .dc-text{flex:1;min-width:0}
   @media(max-width:720px){ .dash{flex-wrap:wrap} }
@@ -169,23 +165,10 @@
   #status{margin:14px 0;font-size:13.5px;color:var(--slate);font-weight:600}
   .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px}
   @keyframes spin{to{transform:rotate(360deg)}}
-  /* ── Superficies glass sobre la malla de fondo (claro y oscuro) ── */
-  .kpi,.dcard,.panel,.capwrap,.tbl-wrap,.buscador,header.hero{
-    background:var(--glass);backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15)}
-  .kpi,.dcard,.panel,.capwrap,.buscador{transition:border-color .2s ease,box-shadow .2s ease,background-color .35s ease}
-  /* ── Entrada orquestada (cascada) ── */
-  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .hero-stat{animation:rise .5s both}
-  .kpi{animation:rise .5s both}
-  .kpis .kpi:nth-child(1){animation-delay:.04s} .kpis .kpi:nth-child(2){animation-delay:.10s}
-  .kpis .kpi:nth-child(3){animation-delay:.16s} .kpis .kpi:nth-child(4){animation-delay:.22s}
-  .kpis .kpi:nth-child(5){animation-delay:.28s} .kpis .kpi:nth-child(6){animation-delay:.34s}
-  .dcard{animation:rise .5s both}
-  .dash .dcard:nth-child(1){animation-delay:.30s} .dash .dcard:nth-child(2){animation-delay:.40s}
-  .tbl-wrap{animation:rise .5s .12s both}
-  @media(prefers-reduced-motion:reduce){.hero-stat,.kpi,.dcard,.tbl-wrap{animation:none}}
+  /* Tarjetas: fondo sólido por variable (para que el modo oscuro funcione) */
+  .kpi,.dcard,.panel,.capwrap,.tbl-wrap,.buscador{background:var(--panel);transition:border-color .2s ease,box-shadow .2s ease,background-color .35s ease}
   /* ── Toggle de tema ── */
-  .tema{margin-left:auto;flex:none;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--glass);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .tema{margin-left:auto;flex:none;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
   .tema:hover{border-color:var(--accent);transform:translateY(-1px)}
   /* ── Retoques de tema oscuro ── */
   body.dark .tag.t{background:#103033;border-color:#1d4b50}
@@ -408,10 +391,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
+        // código con espacio interno ("A 1.1", "A 2"): se normaliza SOLO para los tests
+        // de forma de código (no para número/texto), igual que hace parseCodigo. Si no,
+        // la jerarquía real con espacios no se reconoce y gana una columna de códigos
+        // sueltos peor (caso "códigos projeto" disperso a la derecha de la buena).
+        var sc=(/^[A-Za-z]{0,4}\s+\d/.test(s) && s.length<=14) ? s.replace(/\s+/g,"") : s;
         if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
-        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(s)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
-        if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
-          if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
+        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(sc)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
+        if(esCodigoPunteado(sc)){ met[k].codeset[sc]=1; var sg=sc.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
+          if(/^[A-Za-z]{1,4}[.\d]/.test(sc)) met[k].letras++; }
         var nu=toNum(s);
         if(nu!==null){ met[k].num++; if(nu!==0) met[k].numNZ++; }
         else if(s.length>3){ met[k].textLen+=s.length; met[k].textN++; }
@@ -513,7 +501,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -527,8 +515,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
-      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
-        pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""}); continue; }
+      if(isLetterChapter(code) && !unit && !qty){   // capítulo-letra: «A»/«B» sin unidad ni cantidad (0 = título; hay MQT que ponen 0 en totales)
+        if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
+          stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+          pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
       if(!isStructCode(code)){
         if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
@@ -553,7 +545,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
         continue;
       }
-      var nivel = code.split(".").length;
+      // profundidad: nº de segmentos punteados, +1 si la letra va pegada al primer
+      // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
+      // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
+      var _seg = code.split(".");
+      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0);
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
@@ -563,13 +559,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
           ruta:Jp.ruta,codigo:code,partida:desc,unidad:unitEff,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
-      } else {
+      } else if(desc && cur && cur.code===code){   // mismo código que el nodo vigente y sin medición: nota/parcial de continuación (p.ej. «A2» repetido con una observación). NO es un subtítulo nuevo: no toca la jerarquía.
+        stats.nota++; out.push(["__nota__",hoja,fila,desc]);
+      } else if(desc){
         if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
         if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
+      } else { stats.vacia++;   // fila de continuación: mismo código sin texto (celda combinada). NO resetea la jerarquía ni emite título vacío.
       }
     }
     return out;
@@ -580,11 +579,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   }
 
   // ---- familia FORMATO ----
+  // nombre de hoja sin valor de capítulo: etiqueta de documento (MQT/MTQ/Mapa de
+  // Quantidades/Folha/Resumo…), no una disciplina. En esas hojas el capítulo lo dan
+  // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
+  // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
+  function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
-    var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
-    pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
+    if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -598,8 +602,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
-        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++;
-          pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); continue; }
+        if(isCaps(desc) && qty===null){ stats.titulo++; partida=null;
+          if(generica){ capitulo=desc; subcap="";                          // hoja genérica: el título en mayúsculas ES el capítulo (sube un nivel; el nombre de hoja no cuenta)
+            pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+          else { subcap=desc;                                              // hoja con nombre de disciplina: el título es subcapítulo bajo ella
+            pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
+          continue; }
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,

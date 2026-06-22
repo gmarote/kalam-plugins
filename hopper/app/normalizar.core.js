@@ -130,10 +130,15 @@
       var rw=grid[r]; if(!rw) continue; var any=false;
       for(var k=0;k<N;k++){
         var s=txt(cell(rw,k)); if(!s) continue; any=true;
+        // código con espacio interno ("A 1.1", "A 2"): se normaliza SOLO para los tests
+        // de forma de código (no para número/texto), igual que hace parseCodigo. Si no,
+        // la jerarquía real con espacios no se reconoce y gana una columna de códigos
+        // sueltos peor (caso "códigos projeto" disperso a la derecha de la buena).
+        var sc=(/^[A-Za-z]{0,4}\s+\d/.test(s) && s.length<=14) ? s.replace(/\s+/g,"") : s;
         if(/^\d+$/.test(s)) met[k].intset[s]=1;                 // enteros sueltos (posibles padres)
-        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(s)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
-        if(esCodigoPunteado(s)){ met[k].codeset[s]=1; var sg=s.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
-          if(/^[A-Za-z]{1,4}[.\d]/.test(s)) met[k].letras++; }
+        if(/^[A-Za-z]{1,4}\d{0,3}$/.test(sc)) met[k].letterCode++;   // código corto tipo "A","A1","B2" (formato sin puntos)
+        if(esCodigoPunteado(sc)){ met[k].codeset[sc]=1; var sg=sc.split(".").length; if(sg>met[k].segMax) met[k].segMax=sg;
+          if(/^[A-Za-z]{1,4}[.\d]/.test(sc)) met[k].letras++; }
         var nu=toNum(s);
         if(nu!==null){ met[k].num++; if(nu!==0) met[k].numNZ++; }
         else if(s.length>3){ met[k].textLen+=s.length; met[k].textN++; }
@@ -235,7 +240,7 @@
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -249,8 +254,12 @@
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
-      if(isLetterChapter(code) && qty===null){ stats.titulo++; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
-        pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""}); continue; }
+      if(isLetterChapter(code) && !unit && !qty){   // capítulo-letra: «A»/«B» sin unidad ni cantidad (0 = título; hay MQT que ponen 0 en totales)
+        if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
+          stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+          pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
       if(!isStructCode(code)){
         if(qty!==null && unit){                       // medición sin código en su fila
           stats.partida++;
@@ -275,7 +284,11 @@
         } else { (desc?stats.nota++:stats.vacia++); if(desc) out.push(["__nota__",hoja,fila,desc]); }
         continue;
       }
-      var nivel = code.split(".").length;
+      // profundidad: nº de segmentos punteados, +1 si la letra va pegada al primer
+      // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
+      // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
+      var _seg = code.split(".");
+      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0);
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
@@ -285,13 +298,16 @@
           ruta:Jp.ruta,codigo:code,partida:desc,unidad:unitEff,medicion:qty}));
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
-      } else {
+      } else if(desc && cur && cur.code===code){   // mismo código que el nodo vigente y sin medición: nota/parcial de continuación (p.ej. «A2» repetido con una observación). NO es un subtítulo nuevo: no toca la jerarquía.
+        stats.nota++; out.push(["__nota__",hoja,fila,desc]);
+      } else if(desc){
         if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
         if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
         pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
+      } else { stats.vacia++;   // fila de continuación: mismo código sin texto (celda combinada). NO resetea la jerarquía ni emite título vacío.
       }
     }
     return out;
@@ -302,11 +318,16 @@
   }
 
   // ---- familia FORMATO ----
+  // nombre de hoja sin valor de capítulo: etiqueta de documento (MQT/MTQ/Mapa de
+  // Quantidades/Folha/Resumo…), no una disciplina. En esas hojas el capítulo lo dan
+  // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
+  // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
+  function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
-    var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
-    pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
+    if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -320,8 +341,12 @@
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
-        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++;
-          pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); continue; }
+        if(isCaps(desc) && qty===null){ stats.titulo++; partida=null;
+          if(generica){ capitulo=desc; subcap="";                          // hoja genérica: el título en mayúsculas ES el capítulo (sube un nivel; el nombre de hoja no cuenta)
+            pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+          else { subcap=desc;                                              // hoja con nombre de disciplina: el título es subcapítulo bajo ella
+            pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
+          continue; }
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
