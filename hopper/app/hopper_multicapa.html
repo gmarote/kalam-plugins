@@ -584,8 +584,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
   // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
   function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
+  // numeral romano como código de título (I., II., III., IV.…): en hoja genérica marca
+  // el nivel CAPÍTULO; los títulos con número arábigo (0., 1.…) que cuelgan son subcapítulos.
+  function esRomano(s){ s=String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").toUpperCase();
+    return /^(?=[IVXLCDM]+$)M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/.test(s); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
-    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null, romanoVisto=false;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
@@ -603,9 +607,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
         if(isCaps(desc) && qty===null){ stats.titulo++; partida=null;
-          if(generica){ capitulo=desc; subcap="";                          // hoja genérica: el título en mayúsculas ES el capítulo (sube un nivel; el nombre de hoja no cuenta)
-            pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
-          else { subcap=desc;                                              // hoja con nombre de disciplina: el título es subcapítulo bajo ella
+          if(generica){
+            if(esRomano(code)){ capitulo=desc; subcap=""; romanoVisto=true;     // título romano (I., II., III.) = capítulo
+              pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+            else if(romanoVisto){ subcap=desc;                                   // bajo un capítulo romano, el título arábigo (0., 1.…) es subcapítulo
+              pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
+            else { capitulo=desc; subcap="";                                     // hoja genérica sin nivel romano: el título sube a capítulo (el nombre de hoja no cuenta)
+              pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+          }
+          else { subcap=desc;                                                    // hoja con nombre de disciplina: el título es subcapítulo bajo ella
             pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
           continue; }
         partida={code:code,desc:desc}; stats.partida++;
