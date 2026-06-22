@@ -69,6 +69,15 @@ codigo, partida, detalle, unidad, medicion`.
 ### Pendiente
 - **Validación humana** sobre un lote real (lo que convierte el 98% estimado en
   medido y sube la confianza del precio). Es el siguiente paso de más valor.
+- **Recuperar el nivel «sección» (regla de jerarquía esperada).** Lo normal es
+  capítulo › subcapítulo › sección › partida. El motor debe **poblar todos los
+  niveles que el origen aporte** para cada partida, buscándolos en códigos y
+  títulos **aunque no estén en mayúsculas** (p. ej. `0.1. Montagem`, hoy se tira
+  en `parseFormato`). **No inventa**: si la obra no trae un nivel, se deja vacío.
+  Un **hueco intermedio** (nivel vacío entre dos llenos) es señal de
+  sub-detección: intentar rellenarlo y, si no aparece, señalarlo. (Visto en
+  Av5Out77: `0.1.` es sección real; pero `2.1.` cuelga directo de `2. PAREDES`
+  sin sección — por eso NO se puede forzar el nivel.) — *aparcado, volver luego.*
 - Long tail aún a 88-96%: Hidden Away, Lx Factory, Ferreria Borges, CASA_RAMIREZ.
 - Si se consolida la multicapa, decidir si sustituye a la congelada.
 

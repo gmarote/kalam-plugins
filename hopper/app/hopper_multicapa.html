@@ -284,7 +284,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   function isCaps(s){ var letters=s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>2 && s===s.toUpperCase(); }
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
-  function isStructCode(s){ return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0; }
+  function isStructCode(s){ var pre=(String(s).match(/^[A-Za-z]+/)||[""])[0];   // prefijo alfabético en MAYÚSCULAS: los códigos son A/ARQ/C1; palabras-etiqueta (Nota, Item, Obs) van en minúsculas y NO son código
+    return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0 && (!pre || pre===pre.toUpperCase()); }
   function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
 
   function rec(o){
@@ -501,7 +502,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -512,6 +513,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
       if(stripCero){ var _z=code.replace(/(\.0+)+$/,""); if(_z && isStructCode(_z)) code=_z; }   // capa 3: convenio "1.0"=capítulo, "1.1.0"=subcapítulo -> quita el cero final
       if(unit==="0") unit="";
+      if(desc==="0") desc="";   // celda rellena con 0 (hay hojas que ponen 0 en celdas vacías): no es descripción ni título
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
@@ -519,6 +521,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
           stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
           pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
+      // capítulo-macro como TEXTO en la columna de código (heading en MAYÚSCULAS, sin código
+      // numérico, descripción vacía; p.ej. ARQUITECTURA/ESTRUTURAS en la columna ARTIGO). Los
+      // códigos numéricos que cuelgan (1, 2…) bajan un nivel: pasan a subcapítulo.
+      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code)){
+        if(!(cur && cur.nivel===1 && cur.code===code)){
+          stats.titulo++; textCh=true; titles={1:code}; cur={code:code,desc:code,nivel:1};
+          pushEst({codigo:"",nat:natDe(titles,1),ud:"",partida:code,cantidad:""});
         }
         continue; }
       if(!isStructCode(code)){
@@ -549,7 +560,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0);
+      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0) + (textCh ? 1 : 0);   // bajo un capítulo-macro de texto, los códigos numéricos cuelgan un nivel más abajo
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
@@ -584,8 +595,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
   // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
   function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
+  // numeral romano como código de título (I., II., III., IV.…): en hoja genérica marca
+  // el nivel CAPÍTULO; los títulos con número arábigo (0., 1.…) que cuelgan son subcapítulos.
+  function esRomano(s){ s=String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").toUpperCase();
+    return /^(?=[IVXLCDM]+$)M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/.test(s); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
-    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null, romanoVisto=false;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
@@ -596,6 +611,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
       else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
       if(unit==="0") unit="";
+      if(desc==="0") desc="";   // celda rellena con 0: no es descripción ni título
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
       if(!code && !desc && qty===null){ stats.vacia++; continue; }
@@ -603,9 +619,15 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
         if(isCaps(desc) && qty===null){ stats.titulo++; partida=null;
-          if(generica){ capitulo=desc; subcap="";                          // hoja genérica: el título en mayúsculas ES el capítulo (sube un nivel; el nombre de hoja no cuenta)
-            pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
-          else { subcap=desc;                                              // hoja con nombre de disciplina: el título es subcapítulo bajo ella
+          if(generica){
+            if(esRomano(code)){ capitulo=desc; subcap=""; romanoVisto=true;     // título romano (I., II., III.) = capítulo
+              pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+            else if(romanoVisto){ subcap=desc;                                   // bajo un capítulo romano, el título arábigo (0., 1.…) es subcapítulo
+              pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
+            else { capitulo=desc; subcap="";                                     // hoja genérica sin nivel romano: el título sube a capítulo (el nombre de hoja no cuenta)
+              pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+          }
+          else { subcap=desc;                                                    // hoja con nombre de disciplina: el título es subcapítulo bajo ella
             pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
           continue; }
         partida={code:code,desc:desc}; stats.partida++;
@@ -724,6 +746,34 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     return n/ka.length;
   }
 
+  // ---- ÍNDICE/RESUMO: una hoja "RES"/"RESUMO"/"INDICE" que lista código→título y
+  // mapea los NOMBRES DE HOJA reales a su capítulo/subcapítulo. Letra sola (A,B,C,D) =
+  // capítulo; letra+número o número (C1, 13) = subcapítulo de la letra anterior.
+  // Devuelve {nombreHoja: [capítulo] | [capítulo, subcapítulo]} o null si no aplica.
+  function mapaResumo(wb, nombres, XLSX){
+    var resName=null;
+    for(var i=0;i<nombres.length;i++){ if(/^\s*(res|resumo|resumen|indice|índice|resumen)\b/i.test(nombres[i])){ resName=nombres[i]; break; } }
+    if(!resName) return null;
+    var grid=gridDe(wb.Sheets[resName], XLSX), ents=[], lastTop=null, byCode={};
+    for(var r=0;r<grid.length;r++){
+      var code=txt(cell(grid[r],0)), title=txt(cell(grid[r],1));
+      if(!code || !title) continue;
+      if(!/^[A-Za-z]?\d{0,2}$/.test(code)) continue;     // A, B, C1, 1, 13… (no "GRAF_B" ni texto)
+      if(!/[A-Za-zÀ-ÿ]{2,}/.test(title)) continue;       // el título debe tener letras
+      var e={code:code.toUpperCase(), title:title, top:/^[A-Za-z]$/.test(code)};
+      if(e.top) lastTop=e; else e.parent=lastTop;
+      ents.push(e); byCode[e.code]=e;
+    }
+    if(ents.length<3) return null;
+    var pref={}, casan=0;
+    nombres.forEach(function(n){
+      var e=byCode[n.trim().toUpperCase()]; if(!e) return;
+      pref[n] = e.top ? [e.title] : [(e.parent?e.parent.title:""), e.title].filter(Boolean);
+      casan++;
+    });
+    return casan>=2 ? pref : null;   // exige que casen ≥2 hojas reales (guarda contra falsos positivos)
+  }
+
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // Procesa TODAS las hojas (no se descarta nada por nombre) y descarta solo las
   // que resulten ser duplicado/subconjunto de otra hoja mayor (evita doble conteo).
@@ -782,6 +832,36 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
     });
+
+    // 1b) RESUMO/ÍNDICE: si hay una hoja-índice que nombra los capítulos por hoja, se
+    //     re-mapea la jerarquía: el capítulo/subcapítulo lo fija el resumo y los títulos
+    //     internos de la hoja bajan de nivel (capítulo › subcapítulo › sección).
+    var pref=mapaResumo(wb, nombres, XLSX);
+    if(pref){
+      nombres.forEach(function(h){
+        if(!pref[h]) return;
+        var fijo=pref[h], fam=info[h].familia;
+        data[h].medRows.forEach(function(r){
+          // niveles internos de la hoja: en "formato" el capítulo es el nombre de hoja (se tira);
+          // en "codigo" el capítulo ya es un título real (se conserva).
+          var internas=(fam==="formato")?[r.subcapitulo,r.seccion]:[r.capitulo,r.subcapitulo,r.seccion];
+          var niv0=fijo.concat(internas.filter(function(x){return txt(x);})), niv=[];
+          niv0.forEach(function(x){ if(!niv.length || txt(niv[niv.length-1]).toUpperCase()!==txt(x).toUpperCase()) niv.push(x); });   // dedup consecutivo: evita «ARQUITETURA » ARQUITETURA» cuando el resumo y el título interno coinciden
+          r.division=""; r.capitulo=niv[0]||""; r.subcapitulo=niv[1]||""; r.seccion=niv[2]||"";
+          r.ruta=niv.filter(Boolean).slice(0,3).join(" > ");
+        });
+        // regenera la estructura de costes desde la jerarquía ya re-mapeada
+        var est2=[], cap="",sub="",sec="";
+        data[h].medRows.forEach(function(r){
+          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:""}); }
+          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:""}); }
+          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:""}); }
+          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion});
+        });
+        data[h].est=est2;
+        info[h].resumo=true;
+      });
+    }
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
     nombres.forEach(function(A){
