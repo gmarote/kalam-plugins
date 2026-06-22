@@ -23,7 +23,8 @@
 
   function isCaps(s){ var letters=s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>2 && s===s.toUpperCase(); }
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
-  function isStructCode(s){ return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0; }
+  function isStructCode(s){ var pre=(String(s).match(/^[A-Za-z]+/)||[""])[0];   // prefijo alfabético en MAYÚSCULAS: los códigos son A/ARQ/C1; palabras-etiqueta (Nota, Item, Obs) van en minúsculas y NO son código
+    return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0 && (!pre || pre===pre.toUpperCase()); }
   function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
 
   function rec(o){
@@ -240,7 +241,7 @@
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -259,6 +260,15 @@
         if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
           stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
           pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
+      // capítulo-macro como TEXTO en la columna de código (heading en MAYÚSCULAS, sin código
+      // numérico, descripción vacía; p.ej. ARQUITECTURA/ESTRUTURAS en la columna ARTIGO). Los
+      // códigos numéricos que cuelgan (1, 2…) bajan un nivel: pasan a subcapítulo.
+      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code)){
+        if(!(cur && cur.nivel===1 && cur.code===code)){
+          stats.titulo++; textCh=true; titles={1:code}; cur={code:code,desc:code,nivel:1};
+          pushEst({codigo:"",nat:natDe(titles,1),ud:"",partida:code,cantidad:""});
         }
         continue; }
       if(!isStructCode(code)){
@@ -289,7 +299,7 @@
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0);
+      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0) + (textCh ? 1 : 0);   // bajo un capítulo-macro de texto, los códigos numéricos cuelgan un nivel más abajo
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
