@@ -12,8 +12,7 @@
     --bg:#FFFFFF;--panel:#FFFFFF;--soft:#F6F7F9;--line:#ECEEF1;
     --radius:16px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05);
     --ok:#15803D;--ok-soft:#E7F3EC;--warn:#B45309;--warn-soft:#FFFBEB;--err:#B91C1C;
-    --grad1:rgba(232,89,12,.07);--grad2:rgba(14,124,134,.05);   /* malla de fondo */
-    --glass:rgba(255,255,255,.74);--hair:#f3f4f6;
+    --hair:#f3f4f6;
   }
   body.dark{
     --accent:#F2772E;--accent-soft:#2C1A0E;--teal:#3BB7C2;--slate:#C2CAD3;
@@ -21,15 +20,12 @@
     --bg:#0E1116;--panel:#171B22;--soft:#161A20;--line:#2A313B;
     --shadow:0 1px 2px rgba(0,0,0,.30),0 12px 30px rgba(0,0,0,.38);
     --ok:#4ADE80;--ok-soft:#16271C;--warn:#FBBF24;--warn-soft:#2A2110;--err:#F87171;
-    --grad1:rgba(242,119,46,.12);--grad2:rgba(59,183,194,.09);
-    --glass:rgba(23,27,34,.66);--hair:#242b34;
+    --hair:#242b34;
   }
   *{box-sizing:border-box}
-  body{font:14px/1.55 "DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;
-    background:radial-gradient(60% 55% at 10% -8%, var(--grad1) 0%, transparent 60%),radial-gradient(55% 50% at 100% 0%, var(--grad2) 0%, transparent 55%),var(--soft);
-    background-attachment:fixed;transition:background-color .35s ease,color .35s ease}
+  body{font:14px/1.55 "DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;background:var(--soft);transition:background-color .35s ease,color .35s ease}
 
-  header.hero{background:linear-gradient(180deg,#FFFFFF 0%,#FBFBFC 100%);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;backdrop-filter:saturate(1.1) blur(6px)}
+  header.hero{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
   .hero-in{max-width:1280px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;gap:18px}
   .logo{display:flex;align-items:center;gap:12px;min-width:0}
   .logo-mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent) 0%,#F08C3C 100%);box-shadow:0 4px 12px rgba(232,89,12,.30);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex:none}
@@ -169,23 +165,10 @@
   #status{margin:14px 0;font-size:13.5px;color:var(--slate);font-weight:600}
   .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px}
   @keyframes spin{to{transform:rotate(360deg)}}
-  /* ── Superficies glass sobre la malla de fondo (claro y oscuro) ── */
-  .kpi,.dcard,.panel,.capwrap,.tbl-wrap,.buscador,header.hero{
-    background:var(--glass);backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15)}
-  .kpi,.dcard,.panel,.capwrap,.buscador{transition:border-color .2s ease,box-shadow .2s ease,background-color .35s ease}
-  /* ── Entrada orquestada (cascada) ── */
-  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .hero-stat{animation:rise .5s both}
-  .kpi{animation:rise .5s both}
-  .kpis .kpi:nth-child(1){animation-delay:.04s} .kpis .kpi:nth-child(2){animation-delay:.10s}
-  .kpis .kpi:nth-child(3){animation-delay:.16s} .kpis .kpi:nth-child(4){animation-delay:.22s}
-  .kpis .kpi:nth-child(5){animation-delay:.28s} .kpis .kpi:nth-child(6){animation-delay:.34s}
-  .dcard{animation:rise .5s both}
-  .dash .dcard:nth-child(1){animation-delay:.30s} .dash .dcard:nth-child(2){animation-delay:.40s}
-  .tbl-wrap{animation:rise .5s .12s both}
-  @media(prefers-reduced-motion:reduce){.hero-stat,.kpi,.dcard,.tbl-wrap{animation:none}}
+  /* Tarjetas: fondo sólido por variable (para que el modo oscuro funcione) */
+  .kpi,.dcard,.panel,.capwrap,.tbl-wrap,.buscador{background:var(--panel);transition:border-color .2s ease,box-shadow .2s ease,background-color .35s ease}
   /* ── Toggle de tema ── */
-  .tema{margin-left:auto;flex:none;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--glass);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .tema{margin-left:auto;flex:none;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
   .tema:hover{border-color:var(--accent);transform:translateY(-1px)}
   /* ── Retoques de tema oscuro ── */
   body.dark .tag.t{background:#103033;border-color:#1d4b50}
