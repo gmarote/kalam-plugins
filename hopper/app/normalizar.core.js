@@ -318,11 +318,16 @@
   }
 
   // ---- familia FORMATO ----
+  // nombre de hoja sin valor de capítulo: etiqueta de documento (MQT/MTQ/Mapa de
+  // Quantidades/Folha/Resumo…), no una disciplina. En esas hojas el capítulo lo dan
+  // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
+  // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
+  function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
-    var capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
+    var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null;
     function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
-    pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});
+    if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
     var start = headerRow>=0?headerRow+1:0;
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
@@ -336,8 +341,12 @@
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
-        if(isCaps(desc) && qty===null){ subcap=desc; partida=null; stats.titulo++;
-          pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); continue; }
+        if(isCaps(desc) && qty===null){ stats.titulo++; partida=null;
+          if(generica){ capitulo=desc; subcap="";                          // hoja genérica: el título en mayúsculas ES el capítulo (sube un nivel; el nombre de hoja no cuenta)
+            pushEst({codigo:code,nat:"Capitulo",ud:"",partida:desc,cantidad:""}); }
+          else { subcap=desc;                                              // hoja con nombre de disciplina: el título es subcapítulo bajo ella
+            pushEst({codigo:code,nat:"Subcapitulo",ud:"",partida:desc,cantidad:""}); }
+          continue; }
         partida={code:code,desc:desc}; stats.partida++;
         if(qty!==null) out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           capitulo:capitulo,subcapitulo:subcap,ruta:ruta,codigo:code,partida:desc,
