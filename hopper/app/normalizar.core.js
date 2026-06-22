@@ -475,6 +475,34 @@
     return n/ka.length;
   }
 
+  // ---- ÍNDICE/RESUMO: una hoja "RES"/"RESUMO"/"INDICE" que lista código→título y
+  // mapea los NOMBRES DE HOJA reales a su capítulo/subcapítulo. Letra sola (A,B,C,D) =
+  // capítulo; letra+número o número (C1, 13) = subcapítulo de la letra anterior.
+  // Devuelve {nombreHoja: [capítulo] | [capítulo, subcapítulo]} o null si no aplica.
+  function mapaResumo(wb, nombres, XLSX){
+    var resName=null;
+    for(var i=0;i<nombres.length;i++){ if(/^\s*(res|resumo|resumen|indice|índice|resumen)\b/i.test(nombres[i])){ resName=nombres[i]; break; } }
+    if(!resName) return null;
+    var grid=gridDe(wb.Sheets[resName], XLSX), ents=[], lastTop=null, byCode={};
+    for(var r=0;r<grid.length;r++){
+      var code=txt(cell(grid[r],0)), title=txt(cell(grid[r],1));
+      if(!code || !title) continue;
+      if(!/^[A-Za-z]?\d{0,2}$/.test(code)) continue;     // A, B, C1, 1, 13… (no "GRAF_B" ni texto)
+      if(!/[A-Za-zÀ-ÿ]{2,}/.test(title)) continue;       // el título debe tener letras
+      var e={code:code.toUpperCase(), title:title, top:/^[A-Za-z]$/.test(code)};
+      if(e.top) lastTop=e; else e.parent=lastTop;
+      ents.push(e); byCode[e.code]=e;
+    }
+    if(ents.length<3) return null;
+    var pref={}, casan=0;
+    nombres.forEach(function(n){
+      var e=byCode[n.trim().toUpperCase()]; if(!e) return;
+      pref[n] = e.top ? [e.title] : [(e.parent?e.parent.title:""), e.title].filter(Boolean);
+      casan++;
+    });
+    return casan>=2 ? pref : null;   // exige que casen ≥2 hojas reales (guarda contra falsos positivos)
+  }
+
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // Procesa TODAS las hojas (no se descarta nada por nombre) y descarta solo las
   // que resulten ser duplicado/subconjunto de otra hoja mayor (evita doble conteo).
@@ -533,6 +561,36 @@
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
     });
+
+    // 1b) RESUMO/ÍNDICE: si hay una hoja-índice que nombra los capítulos por hoja, se
+    //     re-mapea la jerarquía: el capítulo/subcapítulo lo fija el resumo y los títulos
+    //     internos de la hoja bajan de nivel (capítulo › subcapítulo › sección).
+    var pref=mapaResumo(wb, nombres, XLSX);
+    if(pref){
+      nombres.forEach(function(h){
+        if(!pref[h]) return;
+        var fijo=pref[h], fam=info[h].familia;
+        data[h].medRows.forEach(function(r){
+          // niveles internos de la hoja: en "formato" el capítulo es el nombre de hoja (se tira);
+          // en "codigo" el capítulo ya es un título real (se conserva).
+          var internas=(fam==="formato")?[r.subcapitulo,r.seccion]:[r.capitulo,r.subcapitulo,r.seccion];
+          var niv0=fijo.concat(internas.filter(function(x){return txt(x);})), niv=[];
+          niv0.forEach(function(x){ if(!niv.length || txt(niv[niv.length-1]).toUpperCase()!==txt(x).toUpperCase()) niv.push(x); });   // dedup consecutivo: evita «ARQUITETURA » ARQUITETURA» cuando el resumo y el título interno coinciden
+          r.division=""; r.capitulo=niv[0]||""; r.subcapitulo=niv[1]||""; r.seccion=niv[2]||"";
+          r.ruta=niv.filter(Boolean).slice(0,3).join(" > ");
+        });
+        // regenera la estructura de costes desde la jerarquía ya re-mapeada
+        var est2=[], cap="",sub="",sec="";
+        data[h].medRows.forEach(function(r){
+          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:""}); }
+          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:""}); }
+          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:""}); }
+          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion});
+        });
+        data[h].est=est2;
+        info[h].resumo=true;
+      });
+    }
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
     nombres.forEach(function(A){
