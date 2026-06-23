@@ -723,12 +723,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
     }
 
-    // 4) Cantidad 0 (proporcional)
+    // 4) Cantidad 0: solo es señal si son MAYORÍA (entonces la columna de cantidad puede
+    //    estar mal detectada). Unas pocas a 0 son NORMALES (partidas aún sin medir): no se
+    //    avisa, para no mandar la hoja a revisar sin motivo.
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0){
-      if(z>=np*0.5) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
-      else a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
-    }
+    if(z>=np*0.5 && z>0) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
     return a;
   }
 
