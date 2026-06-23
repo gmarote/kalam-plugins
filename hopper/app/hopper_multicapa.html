@@ -259,10 +259,10 @@
   <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
 
   <details class="panel hide" id="jerarquiaWrap"><summary id="jerarquiaSum">Revisar jerarquía (opcional)</summary>
-    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Por hoja, una <b>rama de ejemplo</b>: la hoja y un título de cada nivel. Cambia el nivel de una fila y <b>se aplica a todos</b> los títulos de ese nivel en esa hoja (el <span style="color:var(--faint)">×N</span> indica cuántos). Pulsa <b>Aplicar</b>. O ignóralo: la salida de abajo ya es válida.</div>
+    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Por hoja, una <b>rama de ejemplo</b>: la hoja y un título de cada nivel. Cambia el nivel de una fila y <b>se aplica al instante</b> a todos los de ese nivel en esa hoja (el <span style="color:var(--faint)">×N</span> indica cuántos); lo ves en la tabla de abajo. Cuando te encaje, pulsa <b>Guardar cambios</b>. O ignóralo: la salida automática ya es válida.</div>
     <div id="jerarquia"></div>
     <div id="jerarquiaBtns" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-      <button class="primary" id="jerAplicar">Aplicar cambios</button>
+      <button class="primary" id="jerAplicar">Guardar cambios</button>
       <button class="secondary" id="jerReset">Restaurar automático</button>
       <span class="muted" id="jerInfo" style="align-self:center;font-size:12.5px"></span>
     </div>
@@ -1136,7 +1136,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var rd=new FileReader();
       rd.onload=function(){
         try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-          cargados.push({archivo:f.name, wb:wb, det:core.normalizar(wb, f.name, XLSX, {})}); }
+          var det=core.normalizar(wb, f.name, XLSX, {});
+          det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // snapshot inmutable del original (para preview en vivo)
+          cargados.push({archivo:f.name, wb:wb, det:det}); }
         catch(e){ errores.push({nombre:f.name, motivo:"no se pudo leer ("+(e&&e.message?e.message:"archivo dañado o protegido con contraseña")+")"}); }
         fin();
       };
@@ -1205,7 +1207,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     jerInfo();
   }
   function jerCambios(){ var n=Object.keys(jerHoja).length; Object.keys(jerLvl).forEach(function(k){ n+=Object.keys(jerLvl[k]).length; }); return n; }
-  function jerInfo(){ var n=jerCambios(); $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+" sin aplicar") : ""; }
+  function jerInfo(){ var n=jerCambios(); $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+" aplicado"+(n>1?"s":"")+" (sin guardar)") : ""; }
   $("jerarquia").addEventListener("change", function(ev){
     var sel=ev.target; if(sel.tagName!=="SELECT") return;
     var row=sel.closest(".jer-row"), fi=+row.getAttribute("data-fi"), h=row.getAttribute("data-h"), k=jerKey(fi,h);
@@ -1220,33 +1222,44 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       row.classList.toggle("changed", val!==orig);
     }
     var hoja=sel.closest(".jer-hoja"); if(hoja) hoja.classList.toggle("changed", (jerHoja[k]!=null)||(jerLvl[k]&&Object.keys(jerLvl[k]).length>0));
-    jerInfo();
+    previsualizar();                                                              // preview en vivo: aplica al instante y re-pinta tabla + panel
   });
-  $("jerAplicar").addEventListener("click", function(){
-    if(!jerCambios()){ $("jerInfo").textContent="Sin cambios que aplicar"; return; }
+  // aplica TODAS las ediciones desde el original inmutable (_o); no acumula
+  function aplicarEdiciones(){
     cargados.forEach(function(c, fi){
+      c.det.mediciones.forEach(function(r){ if(r._o){ r.division=r._o.d; r.capitulo=r._o.c; r.subcapitulo=r._o.s; r.seccion=r._o.e; r.ruta=r._o.r; } });
       var tocada=false;
       Object.keys(c.det.info).forEach(function(h){
         var k=jerKey(fi,h), lv=jerLvl[k], hn=jerHoja[k];
-        if(!lv && hn==null) return; tocada=true;
+        if((!lv||!Object.keys(lv).length) && hn==null) return; tocada=true;
         var base=(c.det.info[h].titulos||[]).filter(function(t){ return t.nivel<=2; });
         var niveles=[]; base.forEach(function(t){ if((t.texto||"").trim() && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
         var fin=core.construirTitulos(base, efRemap(niveles, hn, lv||{}), h, hn);
-        var part=c.det.mediciones.filter(function(r){ return r.hoja===h; });
-        core.aplicarTitulos(part, fin, 3);
+        core.aplicarTitulos(c.det.mediciones.filter(function(r){ return r.hoja===h; }), fin, 3);
       });
-      if(tocada){
-        c.det.estructura=core.estDesdeMed(c.det.mediciones);
-        Object.keys(c.det.info).forEach(function(h){ if(!c.det.info[h].excluida) c.det.info[h].titulos=core.titulosDeMed(c.det.mediciones.filter(function(r){return r.hoja===h;})); });
-      }
+      c.det.estructura=core.estDesdeMed(c.det.mediciones);                        // hoja de costes coherente con el preview
+    });
+  }
+  function previsualizar(){
+    aplicarEdiciones();
+    merged = cargados.length ? core.acumular(cargados) : null;
+    if(merged){ pintarTabla(); pintarDashboard(merged.mediciones, merged); }
+    renderJerarquia();
+    jerInfo();
+  }
+  $("jerAplicar").addEventListener("click", function(){      // «Guardar cambios»: fija el estado actual como nueva base
+    aplicarEdiciones();
+    cargados.forEach(function(c){
+      c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // el guardado pasa a ser el original de trabajo
+      Object.keys(c.det.info).forEach(function(h){ if(!c.det.info[h].excluida) c.det.info[h].titulos=core.titulosDeMed(c.det.mediciones.filter(function(r){return r.hoja===h;})); });
     });
     jerLvl={}; jerHoja={};
     recalcular();
-    $("jerarquiaWrap").open=true; $("jerInfo").textContent="✓ Cambios aplicados";
+    $("jerarquiaWrap").open=true; $("jerInfo").textContent="✓ Cambios guardados";
   });
   $("jerReset").addEventListener("click", function(){
     jerLvl={}; jerHoja={};
-    cargados.forEach(function(c){ if(c.wb) c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); });
+    cargados.forEach(function(c){ if(c.wb){ c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; }); } });
     recalcular();
     $("jerarquiaWrap").open=true; $("jerInfo").textContent="↺ Restaurado a automático";
   });
