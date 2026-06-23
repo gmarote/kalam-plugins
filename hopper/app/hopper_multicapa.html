@@ -151,6 +151,10 @@
   .jer-sheet{border-bottom:1px dashed var(--line);padding-top:6px;padding-bottom:6px}
   .jer-sheet .jer-txt{font-weight:800}
   .jer-mini{font-weight:500;font-size:11px;color:var(--faint)}
+  .jer-pers{margin-left:auto;font-weight:500;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .jer-pers u{color:var(--accent)}
+  .jer-hoja.pers{border-left:3px solid var(--accent)}
+  .jer-hoja.pers>h4{background:var(--accent-soft)}
   .jer-row select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);cursor:pointer}
   .jer-cnt{font-size:11px;color:var(--faint);min-width:34px;text-align:right}
   /* hero: tiempo de proceso */
@@ -259,7 +263,7 @@
   <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
 
   <details class="panel hide" id="jerarquiaWrap"><summary id="jerarquiaSum">Revisar jerarquía (opcional)</summary>
-    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Por hoja, una <b>rama de ejemplo</b>: la hoja y un título de cada nivel. Cambia el nivel de una fila y <b>se aplica al instante</b> a todos los de ese nivel en esa hoja (el <span style="color:var(--faint)">×N</span> indica cuántos); lo ves en la tabla de abajo. Cuando te encaje, pulsa <b>Guardar cambios</b>. O ignóralo: la salida automática ya es válida.</div>
+    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Una <b>rama de ejemplo</b> por hoja (la hoja y un título de cada nivel; el <span style="color:var(--faint)">×N</span> es cuántos hay). Como la estructura suele ser igual en todas, un cambio <b>se aplica a todas las hojas al instante</b> y lo ves en la tabla. Si alguna hoja es distinta, pulsa <b>personalizar</b> en su cabecera y ajústala sola. Al final, <b>Guardar cambios</b>. O ignóralo: la salida automática ya es válida.</div>
     <div id="jerarquia"></div>
     <div id="jerarquiaBtns" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
       <button class="primary" id="jerAplicar">Guardar cambios</button>
@@ -1156,8 +1160,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // nivel detectado). Cambiar el nivel de una fila se aplica a TODOS los títulos de ese nivel
   // en la hoja. Sin propagación entre hojas. ----
   function jerKey(fi,h){ return fi+"\u0001"+h; }
-  var jerLvl  = {};                                    // jerKey -> { nivelDetectado: nivelEsquema }  (-1 = no es título)
-  var jerHoja = {};                                    // jerKey -> nivel que representa la hoja (0/1/2)
+  var jerGlobal = {hoja:undefined, lvl:{}};            // regla de jerarquía compartida por TODAS las hojas
+  var jerLocal  = {};                                  // jerKey -> {hoja, lvl}: hojas personalizadas (desenganchadas de la global)
+  function efFor(k){ return jerLocal[k] || jerGlobal; }
   var NIVNAME=["División","Capítulo","Subcapítulo","Sección"];
   // nivel efectivo por nivel detectado: override explícito, o desplazamiento por designar la hoja
   function efRemap(niveles, hn, lv){
@@ -1179,20 +1184,22 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         var tit=(inf.titulos||[]).filter(function(t){ return t.nivel<=2 && (t.texto||"").trim(); });
         if(!tit.length) return;
         hay=true;
-        var k=jerKey(fi,h), hn=jerHoja[k], lv=jerLvl[k]||{};
+        var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{}, pers=!!jerLocal[k];
         var ej={}; tit.forEach(function(t){ if(ej[t.nivel]==null) ej[t.nivel]={texto:t.texto,n:0}; ej[t.nivel].n++; });
         var niveles=Object.keys(ej).map(Number).sort(function(a,b){return a-b;});
         var cambiada=(hn!=null)||Object.keys(lv).length;
-        html+='<div class="jer-hoja'+(cambiada?" changed":"")+'"><h4>'+(cargados.length>1?esc(c.archivo)+" › ":"")+esc(h)+'</h4><div class="jer-list">';
+        html+='<div class="jer-hoja'+(cambiada?" changed":"")+(pers?" pers":"")+'"><h4>'+(cargados.length>1?esc(c.archivo)+" › ":"")+esc(h)+
+          '<span class="jer-pers" data-fi="'+fi+'" data-h="'+esc(h)+'">'+(pers?'✏ propia · <u>seguir a todas</u>':'<u>personalizar</u>')+'</span>'+
+          '</h4><div class="jer-list">';
         html+='<div class="jer-row jer-sheet" data-fi="'+fi+'" data-h="'+esc(h)+'">'+
           '<span class="jer-txt">«'+esc(h)+'» <span class="jer-mini">la hoja entera</span></span>'+
           '<select class="jer-hoja-sel"><option value=""'+(hn==null?" selected":"")+'>—</option>'+
             '<option value="0"'+(hn===0?" selected":"")+'>División</option>'+
             '<option value="1"'+(hn===1?" selected":"")+'>Capítulo</option>'+
             '<option value="2"'+(hn===2?" selected":"")+'>Subcapítulo</option></select></div>';
-        var eff=efRemap(niveles, hn, lv);
+        var rm=efRemap(niveles, hn, lv);
         niveles.forEach(function(n, idx){
-          var cur=eff[n];
+          var cur=rm[n];
           html+='<div class="jer-row jer-lvlrow'+(lv[n]!=null?" changed":"")+'" data-fi="'+fi+'" data-h="'+esc(h)+'" data-orig="'+n+'" style="padding-left:'+(22+idx*22)+'px">'+
             '<span class="jer-txt" title="'+esc(ej[n].texto)+'">'+esc(ej[n].texto)+'</span>'+
             '<span class="jer-cnt" title="títulos de este nivel en la hoja">×'+ej[n].n+'</span>'+
@@ -1206,32 +1213,39 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("jerarquiaWrap").classList.remove("hide");
     jerInfo();
   }
-  function jerCambios(){ var n=Object.keys(jerHoja).length; Object.keys(jerLvl).forEach(function(k){ n+=Object.keys(jerLvl[k]).length; }); return n; }
-  function jerInfo(){ var n=jerCambios(); $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+" aplicado"+(n>1?"s":"")+" (sin guardar)") : ""; }
+  function reglaCambios(e){ return (e.hoja!=null?1:0)+Object.keys(e.lvl||{}).length; }
+  function jerCambios(){ var n=reglaCambios(jerGlobal); Object.keys(jerLocal).forEach(function(k){ n+=reglaCambios(jerLocal[k]); }); return n; }
+  function jerInfo(){ var n=jerCambios(), p=Object.keys(jerLocal).length;
+    $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+(p?(" · "+p+" hoja"+(p>1?"s":"")+" propia"+(p>1?"s":"")):"")+" (sin guardar)") : ""; }
   $("jerarquia").addEventListener("change", function(ev){
     var sel=ev.target; if(sel.tagName!=="SELECT") return;
     var row=sel.closest(".jer-row"), fi=+row.getAttribute("data-fi"), h=row.getAttribute("data-h"), k=jerKey(fi,h);
+    var tgt=jerLocal[k]||jerGlobal;                                               // hoja personalizada -> a su regla local; si no -> a la global (todas)
     if(sel.classList.contains("jer-hoja-sel")){
-      if(sel.value==="") delete jerHoja[k]; else jerHoja[k]=+sel.value;
-      row.classList.toggle("changed", sel.value!=="");
+      tgt.hoja=(sel.value==="")?undefined:+sel.value;
     } else {
       var orig=+row.getAttribute("data-orig"), val=+sel.value;
-      jerLvl[k]=jerLvl[k]||{};
-      if(val===orig) delete jerLvl[k][orig]; else jerLvl[k][orig]=val;
-      if(!Object.keys(jerLvl[k]).length) delete jerLvl[k];
-      row.classList.toggle("changed", val!==orig);
+      tgt.lvl=tgt.lvl||{};
+      if(val===orig) delete tgt.lvl[orig]; else tgt.lvl[orig]=val;
     }
-    var hoja=sel.closest(".jer-hoja"); if(hoja) hoja.classList.toggle("changed", (jerHoja[k]!=null)||(jerLvl[k]&&Object.keys(jerLvl[k]).length>0));
     previsualizar();                                                              // preview en vivo: aplica al instante y re-pinta tabla + panel
+  });
+  // personalizar / volver a seguir a todas
+  $("jerarquia").addEventListener("click", function(ev){
+    var p=ev.target.closest?ev.target.closest(".jer-pers"):null; if(!p) return;
+    var fi=+p.getAttribute("data-fi"), h=p.getAttribute("data-h"), k=jerKey(fi,h);
+    if(jerLocal[k]) delete jerLocal[k];                                           // re-engancha a la global
+    else jerLocal[k]={hoja:jerGlobal.hoja, lvl:Object.assign({},jerGlobal.lvl)};  // se desengancha partiendo de la global
+    previsualizar();
   });
   // aplica TODAS las ediciones desde el original inmutable (_o); no acumula
   function aplicarEdiciones(){
     cargados.forEach(function(c, fi){
       c.det.mediciones.forEach(function(r){ if(r._o){ r.division=r._o.d; r.capitulo=r._o.c; r.subcapitulo=r._o.s; r.seccion=r._o.e; r.ruta=r._o.r; } });
-      var tocada=false;
       Object.keys(c.det.info).forEach(function(h){
-        var k=jerKey(fi,h), lv=jerLvl[k], hn=jerHoja[k];
-        if((!lv||!Object.keys(lv).length) && hn==null) return; tocada=true;
+        if(c.det.info[h].excluida) return;
+        var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{};
+        if((!lv||!Object.keys(lv).length) && hn==null) return;
         var base=(c.det.info[h].titulos||[]).filter(function(t){ return t.nivel<=2; });
         var niveles=[]; base.forEach(function(t){ if((t.texto||"").trim() && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
         var fin=core.construirTitulos(base, efRemap(niveles, hn, lv||{}), h, hn);
@@ -1253,12 +1267,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // el guardado pasa a ser el original de trabajo
       Object.keys(c.det.info).forEach(function(h){ if(!c.det.info[h].excluida) c.det.info[h].titulos=core.titulosDeMed(c.det.mediciones.filter(function(r){return r.hoja===h;})); });
     });
-    jerLvl={}; jerHoja={};
+    jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
     recalcular();
     $("jerarquiaWrap").open=true; $("jerInfo").textContent="✓ Cambios guardados";
   });
   $("jerReset").addEventListener("click", function(){
-    jerLvl={}; jerHoja={};
+    jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
     cargados.forEach(function(c){ if(c.wb){ c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; }); } });
     recalcular();
     $("jerarquiaWrap").open=true; $("jerInfo").textContent="↺ Restaurado a automático";
