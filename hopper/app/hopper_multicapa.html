@@ -1269,13 +1269,13 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     });
     jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
     recalcular();
-    $("jerarquiaWrap").open=true; $("jerInfo").textContent="✓ Cambios guardados";
+    $("jerarquiaWrap").open=false; $("jerInfo").textContent="✓ Cambios guardados";
   });
   $("jerReset").addEventListener("click", function(){
     jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
     cargados.forEach(function(c){ if(c.wb){ c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; }); } });
     recalcular();
-    $("jerarquiaWrap").open=true; $("jerInfo").textContent="↺ Restaurado a automático";
+    $("jerarquiaWrap").open=false; $("jerInfo").textContent="↺ Restaurado a automático";
   });
 
 
