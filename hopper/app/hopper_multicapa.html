@@ -133,6 +133,30 @@
   .kpi.corr .n{color:var(--ok)} .kpi.corr{cursor:pointer} .kpi.corr:hover{border-color:#bbe2c6;box-shadow:0 4px 14px rgba(21,128,61,.16)}
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  /* revisión de jerarquía */
+  .jer-hoja{margin:0 0 14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .jer-hoja>h4{margin:0;padding:8px 13px;background:var(--soft);font-size:12.5px;font-weight:700;color:var(--slate);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .jer-hsel{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .jer-hsel select{font:inherit;font-size:11.5px;padding:2px 5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
+  .jer-list{padding:6px 0}
+  .jer-row{display:flex;align-items:center;gap:10px;padding:3px 13px}
+  .jer-row:hover{background:var(--accent-soft)}
+  .jer-txt{flex:1;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .jer-row[data-niv="0"] .jer-txt{font-weight:800}
+  .jer-row[data-niv="1"] .jer-txt{font-weight:700}
+  .jer-row[data-niv="1"]{padding-left:30px} .jer-row[data-niv="2"]{padding-left:52px}
+  .jer-row[data-niv="2"] .jer-txt{color:var(--muted)}
+  .jer-row.changed{background:rgba(232,137,12,.10)}
+  .jer-hoja.changed{border-color:#E8890C;box-shadow:0 0 0 1px rgba(232,137,12,.25)}
+  .jer-sheet{border-bottom:1px dashed var(--line);padding-top:6px;padding-bottom:6px}
+  .jer-sheet .jer-txt{font-weight:800}
+  .jer-mini{font-weight:500;font-size:11px;color:var(--faint)}
+  .jer-pers{margin-left:auto;font-weight:500;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .jer-pers u{color:var(--accent)}
+  .jer-hoja.pers{border-left:3px solid var(--accent)}
+  .jer-hoja.pers>h4{background:var(--accent-soft)}
+  .jer-row select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);cursor:pointer}
+  .jer-cnt{font-size:11px;color:var(--faint);min-width:34px;text-align:right}
   /* hero: tiempo de proceso */
   .hero-stat{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(120deg,var(--accent-soft) 0%,var(--panel) 62%);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 22px;margin:4px 0 14px}
   .hs-l{display:flex;align-items:center;gap:14px}
@@ -238,6 +262,16 @@
   <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Avisos</summary><div id="avisos" style="margin-top:10px"></div></details>
   <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
 
+  <details class="panel hide" id="jerarquiaWrap"><summary id="jerarquiaSum">Revisar jerarquía (opcional)</summary>
+    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Una <b>rama de ejemplo</b> por hoja (la hoja y un título de cada nivel; el <span style="color:var(--faint)">×N</span> es cuántos hay). Como la estructura suele ser igual en todas, un cambio <b>se aplica a todas las hojas al instante</b> y lo ves en la tabla. Si alguna hoja es distinta, pulsa <b>personalizar</b> en su cabecera y ajústala sola. Al final, <b>Guardar cambios</b>. O ignóralo: la salida automática ya es válida.</div>
+    <div id="jerarquia"></div>
+    <div id="jerarquiaBtns" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="primary" id="jerAplicar">Guardar cambios</button>
+      <button class="secondary" id="jerReset">Restaurar automático</button>
+      <span class="muted" id="jerInfo" style="align-self:center;font-size:12.5px"></span>
+    </div>
+  </details>
+
   <div class="toolbar hide" id="toolbar">
     <button class="primary" id="dl">⬇ Descargar Excel normalizado</button>
     <button class="secondary" id="dlcost" title="Estructura + cantidad, lista para pegar en el sistema de costes de Kalam">⬇ Descargar hoja de costes</button>
@@ -270,6 +304,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
   var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
+  // niveles de jerarquía (para la revisión humana de títulos): 0=división 1=capítulo 2=subcapítulo 3=sección
+  var NAT2NIV = {"División":0,"Capitulo":1,"Subcapitulo":2,"Sección":3};
+  var NIV2NAT = ["División","Capitulo","Subcapitulo","Sección"];
 
   function txt(v){ if(v===null||v===undefined) return ""; if(typeof v==="number"&&isNaN(v)) return ""; return String(v).trim(); }
 
@@ -504,7 +541,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
-    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
+    function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
@@ -601,7 +638,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     return /^(?=[IVXLCDM]+$)M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/.test(s); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
     var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null, romanoVisto=false;
-    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
+    function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
     var start = headerRow>=0?headerRow+1:0;
@@ -686,12 +723,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
     }
 
-    // 4) Cantidad 0 (proporcional)
+    // 4) Cantidad 0: solo es señal si son MAYORÍA (entonces la columna de cantidad puede
+    //    estar mal detectada). Unas pocas a 0 son NORMALES (partidas aún sin medir): no se
+    //    avisa, para no mandar la hoja a revisar sin motivo.
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0){
-      if(z>=np*0.5) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
-      else a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
-    }
+    if(z>=np*0.5 && z>0) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
     return a;
   }
 
@@ -831,6 +867,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
+      // títulos detectados (para la revisión humana de jerarquía): derivados de la salida real
+      info[hoja].titulos=titulosDeMed(medRows);
     });
 
     // 1b) RESUMO/ÍNDICE: si hay una hoja-índice que nombra los capítulos por hoja, se
@@ -853,12 +891,14 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         // regenera la estructura de costes desde la jerarquía ya re-mapeada
         var est2=[], cap="",sub="",sec="";
         data[h].medRows.forEach(function(r){
-          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:""}); }
-          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:""}); }
-          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:""}); }
-          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion});
+          var fr=r.fila_origen||0;
+          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:"",fila:fr}); }
+          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:"",fila:fr}); }
+          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:"",fila:fr}); }
+          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion,fila:fr});
         });
         data[h].est=est2;
+        info[h].titulos=titulosDeMed(data[h].medRows);
         info[h].resumo=true;
       });
     }
@@ -967,8 +1007,71 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
              esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
-  var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+  // ---- revisión humana de jerarquía: re-aplica los niveles de los títulos a las
+  // partidas por POSICIÓN (fila de origen). No re-parsea: barato, para iterar en la UI.
+  // titulos: [{fila, texto, nivel}] (0=div 1=cap 2=subcap 3=sec). Las partidas (medRows,
+  // con fila_origen) reciben los títulos activos por encima de su fila. Devuelve medRows.
+  // títulos de jerarquía derivados de la PROPIA salida (mediciones): cada cambio de
+  // valor en división/capítulo/subcapítulo/sección es un título, en la fila donde
+  // aparece por primera vez. Fiel por construcción (se reaplica sobre las mismas filas).
+  function titulosDeMed(medRows){
+    var rows=medRows.slice().sort(function(a,b){return (a.fila_origen||0)-(b.fila_origen||0);});
+    var out=[], prev=["","","",""];
+    rows.forEach(function(p){
+      var cur=[p.division||"",p.capitulo||"",p.subcapitulo||"",p.seccion||""];
+      for(var n=0;n<4;n++){ if(cur[n]!==prev[n]) out.push({fila:p.fila_origen||0, texto:cur[n], nivel:n}); }   // texto "" = marcador de borrado del nivel (se reaplica para vaciar)
+      prev=cur;
+    });
+    return out;
+  }
+  function aplicarTitulos(medRows, titulos, maxNivel){
+    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe; los más profundos se conservan tal cual
+    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && t.nivel<=maxNivel;})   // incluye marcadores de borrado (texto "")
+                        .slice().sort(function(a,b){return (a.fila||0)-(b.fila||0);});
+    medRows.forEach(function(p){
+      var L=["","","",""];   // [división, capítulo, subcapítulo, sección]
+      for(var i=0;i<ts.length;i++){
+        if((ts[i].fila||0) > (p.fila_origen||0)) break;   // el título aplica desde su fila (incluida) hacia abajo
+        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<=maxNivel;k++) L[k]="";
+      }
+      p.division=L[0]; p.capitulo=L[1]; p.subcapitulo=L[2];
+      if(maxNivel>=3) p.seccion=L[3];                          // si la sección no se revisa, se conserva la del motor
+      p.ruta=[L[0],L[1],L[2],(maxNivel>=3?L[3]:p.seccion)].filter(Boolean).join(" > ");
+    });
+    return medRows;
+  }
+  // reconstruye la estructura de costes (Capitulo/Subcapitulo/Sección + Partida) desde
+  // partidas ya jerarquizadas; se usa tras aplicarTitulos para regenerar la hoja de costes.
+  function estDesdeMed(medRows){
+    var est=[], div="",cap="",sub="",sec="";
+    medRows.forEach(function(r){
+      var fr=r.fila_origen||0;
+      if(r.division!==div){ div=r.division; cap="";sub="";sec=""; if(div) est.push({codigo:"",nat:"División",ud:"",partida:div,cantidad:"",fila:fr}); }
+      if(r.capitulo!==cap){ cap=r.capitulo; sub="";sec=""; if(cap) est.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:"",fila:fr}); }
+      if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:"",fila:fr}); }
+      if(r.seccion!==sec){ sec=r.seccion; if(sec) est.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:"",fila:fr}); }
+      est.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion,fila:fr});
+    });
+    return est;
+  }
+  // construye la lista de títulos final para la revisión por RAMA DE EJEMPLO: un remapeo
+  // de nivel por hoja (lvlRemap: {nivelDetectado -> nivelEsquema}; -1 = no es título) que se
+  // aplica a TODOS los títulos de ese nivel. Si la hoja se designa como nivel (hojaNivel + su
+  // nombre), se inserta arriba. Sin desplazamiento automático: cada nivel se fija explícito.
+  function construirTitulos(base, lvlRemap, hojaTexto, hojaNivel){
+    lvlRemap=lvlRemap||{};
+    var lst=(base||[]).map(function(t){ var nv=(lvlRemap[t.nivel]!=null?lvlRemap[t.nivel]:t.nivel); return {fila:t.fila, texto:t.texto, nivel:nv}; })
+                      .filter(function(t){ return t.nivel>=0; });
+    if(hojaNivel!=null && txt(hojaTexto)){
+      var minFila=Infinity; lst.forEach(function(t){ if(t.fila<minFila) minFila=t.fila; }); if(!isFinite(minFila)) minFila=1;
+      lst.unshift({fila:minFila-1, texto:hojaTexto, nivel:hojaNivel});
+    }
+    return lst;
+  }
+
+  var API={CANON:CANON,COSTHEAD:COSTHEAD,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
+           aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
@@ -1036,7 +1139,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var rd=new FileReader();
       rd.onload=function(){
         try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
-          cargados.push({archivo:f.name, det:core.normalizar(wb, f.name, XLSX, {})}); }
+          var det=core.normalizar(wb, f.name, XLSX, {});
+          det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // snapshot inmutable del original (para preview en vivo)
+          cargados.push({archivo:f.name, wb:wb, det:det}); }
         catch(e){ errores.push({nombre:f.name, motivo:"no se pudo leer ("+(e&&e.message?e.message:"archivo dañado o protegido con contraseña")+")"}); }
         fin();
       };
@@ -1050,10 +1155,133 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     render();
   }
 
+  // ---- revisión de jerarquía: por hoja, UNA rama de ejemplo (la hoja + un título de cada
+  // nivel detectado). Cambiar el nivel de una fila se aplica a TODOS los títulos de ese nivel
+  // en la hoja. Sin propagación entre hojas. ----
+  function jerKey(fi,h){ return fi+"\u0001"+h; }
+  var jerGlobal = {hoja:undefined, lvl:{}};            // regla de jerarquía compartida por TODAS las hojas
+  var jerLocal  = {};                                  // jerKey -> {hoja, lvl}: hojas personalizadas (desenganchadas de la global)
+  function efFor(k){ return jerLocal[k] || jerGlobal; }
+  var NIVNAME=["División","Capítulo","Subcapítulo","Sección"];
+  // nivel efectivo por nivel detectado: override explícito, o desplazamiento por designar la hoja
+  function efRemap(niveles, hn, lv){
+    lv=lv||{}; var minN=niveles.length?Math.min.apply(null,niveles):1, shift=(hn!=null)?((hn+1)-minN):0, out={};
+    niveles.forEach(function(N){ out[N]=(lv[N]!=null)?lv[N]:Math.max(0,Math.min(3,N+shift)); });
+    return out;
+  }
+  function selNivel(cls, val, conNo){
+    var o='<select class="'+cls+'">';
+    for(var i=0;i<4;i++) o+='<option value="'+i+'"'+(val===i?" selected":"")+'>'+NIVNAME[i]+'</option>';
+    if(conNo) o+='<option value="-1"'+(val===-1?" selected":"")+'>· no es título</option>';
+    return o+'</select>';
+  }
+  function renderJerarquia(){
+    var html="", hay=false;
+    cargados.forEach(function(c, fi){
+      Object.keys(c.det.info).forEach(function(h){
+        var inf=c.det.info[h]; if(inf.excluida) return;
+        var tit=(inf.titulos||[]).filter(function(t){ return t.nivel<=2 && (t.texto||"").trim(); });
+        if(!tit.length) return;
+        hay=true;
+        var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{}, pers=!!jerLocal[k];
+        var ej={}; tit.forEach(function(t){ if(ej[t.nivel]==null) ej[t.nivel]={texto:t.texto,n:0}; ej[t.nivel].n++; });
+        var niveles=Object.keys(ej).map(Number).sort(function(a,b){return a-b;});
+        var cambiada=(hn!=null)||Object.keys(lv).length;
+        html+='<div class="jer-hoja'+(cambiada?" changed":"")+(pers?" pers":"")+'"><h4>'+(cargados.length>1?esc(c.archivo)+" › ":"")+esc(h)+
+          '<span class="jer-pers" data-fi="'+fi+'" data-h="'+esc(h)+'">'+(pers?'✏ propia · <u>seguir a todas</u>':'<u>personalizar</u>')+'</span>'+
+          '</h4><div class="jer-list">';
+        html+='<div class="jer-row jer-sheet" data-fi="'+fi+'" data-h="'+esc(h)+'">'+
+          '<span class="jer-txt">«'+esc(h)+'» <span class="jer-mini">la hoja entera</span></span>'+
+          '<select class="jer-hoja-sel"><option value=""'+(hn==null?" selected":"")+'>—</option>'+
+            '<option value="0"'+(hn===0?" selected":"")+'>División</option>'+
+            '<option value="1"'+(hn===1?" selected":"")+'>Capítulo</option>'+
+            '<option value="2"'+(hn===2?" selected":"")+'>Subcapítulo</option></select></div>';
+        var rm=efRemap(niveles, hn, lv);
+        niveles.forEach(function(n, idx){
+          var cur=rm[n];
+          html+='<div class="jer-row jer-lvlrow'+(lv[n]!=null?" changed":"")+'" data-fi="'+fi+'" data-h="'+esc(h)+'" data-orig="'+n+'" style="padding-left:'+(22+idx*22)+'px">'+
+            '<span class="jer-txt" title="'+esc(ej[n].texto)+'">'+esc(ej[n].texto)+'</span>'+
+            '<span class="jer-cnt" title="títulos de este nivel en la hoja">×'+ej[n].n+'</span>'+
+            selNivel("jer-lvl-sel", cur, true)+'</div>';
+        });
+        html+='</div></div>';
+      });
+    });
+    if(!hay){ $("jerarquiaWrap").classList.add("hide"); return; }
+    $("jerarquia").innerHTML=html;
+    $("jerarquiaWrap").classList.remove("hide");
+    jerInfo();
+  }
+  function reglaCambios(e){ return (e.hoja!=null?1:0)+Object.keys(e.lvl||{}).length; }
+  function jerCambios(){ var n=reglaCambios(jerGlobal); Object.keys(jerLocal).forEach(function(k){ n+=reglaCambios(jerLocal[k]); }); return n; }
+  function jerInfo(){ var n=jerCambios(), p=Object.keys(jerLocal).length;
+    $("jerInfo").textContent = n ? (n+" cambio"+(n>1?"s":"")+(p?(" · "+p+" hoja"+(p>1?"s":"")+" propia"+(p>1?"s":"")):"")+" (sin guardar)") : ""; }
+  $("jerarquia").addEventListener("change", function(ev){
+    var sel=ev.target; if(sel.tagName!=="SELECT") return;
+    var row=sel.closest(".jer-row"), fi=+row.getAttribute("data-fi"), h=row.getAttribute("data-h"), k=jerKey(fi,h);
+    var tgt=jerLocal[k]||jerGlobal;                                               // hoja personalizada -> a su regla local; si no -> a la global (todas)
+    if(sel.classList.contains("jer-hoja-sel")){
+      tgt.hoja=(sel.value==="")?undefined:+sel.value;
+    } else {
+      var orig=+row.getAttribute("data-orig"), val=+sel.value;
+      tgt.lvl=tgt.lvl||{};
+      if(val===orig) delete tgt.lvl[orig]; else tgt.lvl[orig]=val;
+    }
+    previsualizar();                                                              // preview en vivo: aplica al instante y re-pinta tabla + panel
+  });
+  // personalizar / volver a seguir a todas
+  $("jerarquia").addEventListener("click", function(ev){
+    var p=ev.target.closest?ev.target.closest(".jer-pers"):null; if(!p) return;
+    var fi=+p.getAttribute("data-fi"), h=p.getAttribute("data-h"), k=jerKey(fi,h);
+    if(jerLocal[k]) delete jerLocal[k];                                           // re-engancha a la global
+    else jerLocal[k]={hoja:jerGlobal.hoja, lvl:Object.assign({},jerGlobal.lvl)};  // se desengancha partiendo de la global
+    previsualizar();
+  });
+  // aplica TODAS las ediciones desde el original inmutable (_o); no acumula
+  function aplicarEdiciones(){
+    cargados.forEach(function(c, fi){
+      c.det.mediciones.forEach(function(r){ if(r._o){ r.division=r._o.d; r.capitulo=r._o.c; r.subcapitulo=r._o.s; r.seccion=r._o.e; r.ruta=r._o.r; } });
+      Object.keys(c.det.info).forEach(function(h){
+        if(c.det.info[h].excluida) return;
+        var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{};
+        if((!lv||!Object.keys(lv).length) && hn==null) return;
+        var base=(c.det.info[h].titulos||[]).filter(function(t){ return t.nivel<=2; });
+        var niveles=[]; base.forEach(function(t){ if((t.texto||"").trim() && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
+        var fin=core.construirTitulos(base, efRemap(niveles, hn, lv||{}), h, hn);
+        core.aplicarTitulos(c.det.mediciones.filter(function(r){ return r.hoja===h; }), fin, 3);
+      });
+      c.det.estructura=core.estDesdeMed(c.det.mediciones);                        // hoja de costes coherente con el preview
+    });
+  }
+  function previsualizar(){
+    aplicarEdiciones();
+    merged = cargados.length ? core.acumular(cargados) : null;
+    if(merged){ pintarTabla(); pintarDashboard(merged.mediciones, merged); }
+    renderJerarquia();
+    jerInfo();
+  }
+  $("jerAplicar").addEventListener("click", function(){      // «Guardar cambios»: fija el estado actual como nueva base
+    aplicarEdiciones();
+    cargados.forEach(function(c){
+      c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // el guardado pasa a ser el original de trabajo
+      Object.keys(c.det.info).forEach(function(h){ if(!c.det.info[h].excluida) c.det.info[h].titulos=core.titulosDeMed(c.det.mediciones.filter(function(r){return r.hoja===h;})); });
+    });
+    jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
+    recalcular();
+    $("jerarquiaWrap").open=false; $("jerInfo").textContent="✓ Cambios guardados";
+  });
+  $("jerReset").addEventListener("click", function(){
+    jerGlobal={hoja:undefined, lvl:{}}; jerLocal={};
+    cargados.forEach(function(c){ if(c.wb){ c.det=core.normalizar(c.wb, c.archivo, XLSX, {}); c.det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; }); } });
+    recalcular();
+    $("jerarquiaWrap").open=false; $("jerInfo").textContent="↺ Restaurado a automático";
+  });
+
+
   function render(){
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
-      $("detalleWrap").classList.add("hide");
+      $("detalleWrap").classList.add("hide"); $("jerarquiaWrap").classList.add("hide");
       $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
       // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
       if(errores.length){
@@ -1066,6 +1294,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     }
     drop.classList.add("compact");        // ya hay datos: colapsa a barra de una fila
     var m=merged.mediciones;
+    renderJerarquia();
 
     // archivos cargados
     $("archivosWrap").classList.remove("hide");
@@ -1081,7 +1310,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("toolbar").classList.toggle("hide", m.length===0);
     var usados=merged.archivos.filter(function(a){return !a.excluido;}).length;
     var dupF=merged.archivos.length-usados;
-    $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
+    $("summary").textContent = m.length+" partidas · "+merged.notas.length+" notas · "+
       usados+" archivo"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
     // tarjetas KPI en dos grupos: izquierda = proceso/fiabilidad (se corresponde con
@@ -1095,7 +1324,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var hero = (ultimoMs>0) ? ('<div class="hero-stat"><div class="hs-l"><span class="hs-ic">⚡</span><div>'+
         '<div class="hs-big">Normalizado en <span class="n" data-to="'+(ultimoMs/1000)+'" data-dec="1">0,0</span> s</div>'+
         '<div class="hs-sub">frente a días de trabajo manual</div></div></div>'+
-        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> mediciones<br>en '+nHojas+' hojas</div></div>') : "";
+        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> partida'+(m.length!==1?"s":"")+'<br>en '+nHojas+' hoja'+(nHojas!==1?"s":"")+'</div></div>') : "";
     $("kpis").innerHTML = m.length ? (hero+'<div class="kpis">'+
       kpi(usados,"archivo","archivos")+
       kpi(nHojas,"hoja procesada","hojas procesadas")+
@@ -1217,13 +1446,14 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       return;
     }
     var fuente=merged.hojas.filter(function(h){return !h.excluida;});
-    // CAPA 2: confianza real = media de la confianza por hoja, ponderada por nº de partidas
-    var num=0,den=0; fuente.forEach(function(h){ var w=h.nMed||0, c=(h.confianza==null?1:h.confianza); num+=c*w; den+=w; });
-    var conf=den?num/den:1, pct=Math.round(conf*100);
+    // CONFIANZA = el eslabón más débil: la confianza de la hoja MENOS fiable. Un promedio
+    // ponderado diluía los problemas (una hoja mala entre varias buenas daba 97%); aquí se
+    // ve la hoja peor, para no fingir fiabilidad.
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
-    var ok=(pct>=98 && aRev===0);
-    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' mediciones · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
-                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
+    var peor=1; fuente.forEach(function(h){ if((h.nMed||0)>0){ var c=(h.confianza==null?1:h.confianza); if(c<peor) peor=c; } });
+    var pct=Math.round(peor*100), ok=(aRev===0);
+    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
+                 : ('<b>'+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
     var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });

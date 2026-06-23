@@ -9,6 +9,9 @@
 
   // Excel 2 «hoja de costes»: estructura + cantidad para volcar al sistema de costes.
   var COSTHEAD = ["Código","Nat","Ud","Partida","CanPres"];
+  // niveles de jerarquía (para la revisión humana de títulos): 0=división 1=capítulo 2=subcapítulo 3=sección
+  var NAT2NIV = {"División":0,"Capitulo":1,"Subcapitulo":2,"Sección":3};
+  var NIV2NAT = ["División","Capitulo","Subcapitulo","Sección"];
 
   function txt(v){ if(v===null||v===undefined) return ""; if(typeof v==="number"&&isNaN(v)) return ""; return String(v).trim(); }
 
@@ -243,7 +246,7 @@
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
-    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
+    function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
@@ -340,7 +343,7 @@
     return /^(?=[IVXLCDM]+$)M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/.test(s); }
   function parseFormato(grid, cols, archivo, hoja, headerRow, capituloHoja, stats, est){
     var generica = esHojaGenerica(hoja), capitulo = capituloHoja, out=[], subcap="", partida=null, curEst=null, romanoVisto=false;
-    function pushEst(o){ if(est) est.push(o); curEst=o; return o; }
+    function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     if(headerRow>=0){ var d=txt(cell(grid[headerRow],cols.desc)); if(d && !roleOf(d)) capitulo=d; }   // usa el texto del encabezado como capítulo solo si NO es la etiqueta de columna ("Designação")
     if(!generica) pushEst({codigo:"",nat:"Capitulo",ud:"",partida:capitulo,cantidad:""});   // hoja genérica: el capítulo lo ponen los títulos internos, no el nombre de hoja
     var start = headerRow>=0?headerRow+1:0;
@@ -425,12 +428,11 @@
       else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
     }
 
-    // 4) Cantidad 0 (proporcional)
+    // 4) Cantidad 0: solo es señal si son MAYORÍA (entonces la columna de cantidad puede
+    //    estar mal detectada). Unas pocas a 0 son NORMALES (partidas aún sin medir): no se
+    //    avisa, para no mandar la hoja a revisar sin motivo.
     var z=medRows.filter(function(r){return r.medicion===0;}).length;
-    if(z>0){
-      if(z>=np*0.5) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
-      else a.push(z+" partida"+(z>1?"s":"")+" con cantidad 0 (probablemente sin medir todavía).");
-    }
+    if(z>=np*0.5 && z>0) a.push(z+" de "+np+" partidas con cantidad 0 — puede que la columna "+colLetra(c.qty)+" no sea la de cantidad.");
     return a;
   }
 
@@ -570,6 +572,8 @@
       info[hoja].stats=stats;
       info[hoja].nMed=medRows.length;        // partidas emitidas (lo que va a la salida)
       data[hoja]={medRows:medRows,notas:notasRows,claves:clavesDe(medRows),est:estRows};
+      // títulos detectados (para la revisión humana de jerarquía): derivados de la salida real
+      info[hoja].titulos=titulosDeMed(medRows);
     });
 
     // 1b) RESUMO/ÍNDICE: si hay una hoja-índice que nombra los capítulos por hoja, se
@@ -592,12 +596,14 @@
         // regenera la estructura de costes desde la jerarquía ya re-mapeada
         var est2=[], cap="",sub="",sec="";
         data[h].medRows.forEach(function(r){
-          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:""}); }
-          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:""}); }
-          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:""}); }
-          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion});
+          var fr=r.fila_origen||0;
+          if(r.capitulo!==cap){ cap=r.capitulo; sub=""; sec=""; if(cap) est2.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:"",fila:fr}); }
+          if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est2.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:"",fila:fr}); }
+          if(r.seccion!==sec){ sec=r.seccion; if(sec) est2.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:"",fila:fr}); }
+          est2.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion,fila:fr});
         });
         data[h].est=est2;
+        info[h].titulos=titulosDeMed(data[h].medRows);
         info[h].resumo=true;
       });
     }
@@ -706,8 +712,71 @@
              esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
-  var API={CANON:CANON,COSTHEAD:COSTHEAD,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
-           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,
+  // ---- revisión humana de jerarquía: re-aplica los niveles de los títulos a las
+  // partidas por POSICIÓN (fila de origen). No re-parsea: barato, para iterar en la UI.
+  // titulos: [{fila, texto, nivel}] (0=div 1=cap 2=subcap 3=sec). Las partidas (medRows,
+  // con fila_origen) reciben los títulos activos por encima de su fila. Devuelve medRows.
+  // títulos de jerarquía derivados de la PROPIA salida (mediciones): cada cambio de
+  // valor en división/capítulo/subcapítulo/sección es un título, en la fila donde
+  // aparece por primera vez. Fiel por construcción (se reaplica sobre las mismas filas).
+  function titulosDeMed(medRows){
+    var rows=medRows.slice().sort(function(a,b){return (a.fila_origen||0)-(b.fila_origen||0);});
+    var out=[], prev=["","","",""];
+    rows.forEach(function(p){
+      var cur=[p.division||"",p.capitulo||"",p.subcapitulo||"",p.seccion||""];
+      for(var n=0;n<4;n++){ if(cur[n]!==prev[n]) out.push({fila:p.fila_origen||0, texto:cur[n], nivel:n}); }   // texto "" = marcador de borrado del nivel (se reaplica para vaciar)
+      prev=cur;
+    });
+    return out;
+  }
+  function aplicarTitulos(medRows, titulos, maxNivel){
+    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe; los más profundos se conservan tal cual
+    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && t.nivel<=maxNivel;})   // incluye marcadores de borrado (texto "")
+                        .slice().sort(function(a,b){return (a.fila||0)-(b.fila||0);});
+    medRows.forEach(function(p){
+      var L=["","","",""];   // [división, capítulo, subcapítulo, sección]
+      for(var i=0;i<ts.length;i++){
+        if((ts[i].fila||0) > (p.fila_origen||0)) break;   // el título aplica desde su fila (incluida) hacia abajo
+        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<=maxNivel;k++) L[k]="";
+      }
+      p.division=L[0]; p.capitulo=L[1]; p.subcapitulo=L[2];
+      if(maxNivel>=3) p.seccion=L[3];                          // si la sección no se revisa, se conserva la del motor
+      p.ruta=[L[0],L[1],L[2],(maxNivel>=3?L[3]:p.seccion)].filter(Boolean).join(" > ");
+    });
+    return medRows;
+  }
+  // reconstruye la estructura de costes (Capitulo/Subcapitulo/Sección + Partida) desde
+  // partidas ya jerarquizadas; se usa tras aplicarTitulos para regenerar la hoja de costes.
+  function estDesdeMed(medRows){
+    var est=[], div="",cap="",sub="",sec="";
+    medRows.forEach(function(r){
+      var fr=r.fila_origen||0;
+      if(r.division!==div){ div=r.division; cap="";sub="";sec=""; if(div) est.push({codigo:"",nat:"División",ud:"",partida:div,cantidad:"",fila:fr}); }
+      if(r.capitulo!==cap){ cap=r.capitulo; sub="";sec=""; if(cap) est.push({codigo:"",nat:"Capitulo",ud:"",partida:cap,cantidad:"",fila:fr}); }
+      if(r.subcapitulo!==sub){ sub=r.subcapitulo; sec=""; if(sub) est.push({codigo:"",nat:"Subcapitulo",ud:"",partida:sub,cantidad:"",fila:fr}); }
+      if(r.seccion!==sec){ sec=r.seccion; if(sec) est.push({codigo:"",nat:"Sección",ud:"",partida:sec,cantidad:"",fila:fr}); }
+      est.push({codigo:r.codigo,nat:"Partida",ud:r.unidad,partida:r.partida,cantidad:r.medicion,fila:fr});
+    });
+    return est;
+  }
+  // construye la lista de títulos final para la revisión por RAMA DE EJEMPLO: un remapeo
+  // de nivel por hoja (lvlRemap: {nivelDetectado -> nivelEsquema}; -1 = no es título) que se
+  // aplica a TODOS los títulos de ese nivel. Si la hoja se designa como nivel (hojaNivel + su
+  // nombre), se inserta arriba. Sin desplazamiento automático: cada nivel se fija explícito.
+  function construirTitulos(base, lvlRemap, hojaTexto, hojaNivel){
+    lvlRemap=lvlRemap||{};
+    var lst=(base||[]).map(function(t){ var nv=(lvlRemap[t.nivel]!=null?lvlRemap[t.nivel]:t.nivel); return {fila:t.fila, texto:t.texto, nivel:nv}; })
+                      .filter(function(t){ return t.nivel>=0; });
+    if(hojaNivel!=null && txt(hojaTexto)){
+      var minFila=Infinity; lst.forEach(function(t){ if(t.fila<minFila) minFila=t.fila; }); if(!isFinite(minFila)) minFila=1;
+      lst.unshift({fila:minFila-1, texto:hojaTexto, nivel:hojaNivel});
+    }
+    return lst;
+  }
+
+  var API={CANON:CANON,COSTHEAD:COSTHEAD,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
+           parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
+           aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
