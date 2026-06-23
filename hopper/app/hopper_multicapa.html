@@ -1517,11 +1517,6 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         'Los datos se muestran abajo, pero no se evalúa su fiabilidad.</div></div></div>';
       return;
     }
-    var ptBanner = merged.passthrough
-      ? '<div class="dcard" style="border-color:#3FA66A"><span class="ic">✓</span><div class="dc-text">'+
-        '<h3>Fichero ya normalizado</h3><div class="d-sub">Reconocido como salida de hopper: se ha cargado <b>tal cual</b>, sin re-detección. '+
-        'Puedes volver a exportar la tabla o regenerar la hoja de costes.</div></div></div>'
-      : '';
     var fuente=merged.hojas.filter(function(h){return !h.excluida;});
     // CONFIANZA = el eslabón más débil: la confianza de la hoja MENOS fiable. Un promedio
     // ponderado diluía los problemas (una hoja mala entre varias buenas daba 97%); aquí se
@@ -1529,9 +1524,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
     var peor=1; fuente.forEach(function(h){ if((h.nMed||0)>0){ var c=(h.confianza==null?1:h.confianza); if(c<peor) peor=c; } });
     var pct=Math.round(peor*100), ok=(aRev===0);
-    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
+    var pt=merged.passthrough;
+    var sub = ok ? ((pt?'<b>Fichero ya normalizado</b>':'<b>Extracción fiable</b>')+'<br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
                  : ('<b>'+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
-    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
+    var titulo = pt ? 'Mediciones normalizadas' : 'Confianza de la extracción';
+    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>'+titulo+'</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
@@ -1539,7 +1536,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(resto.length){ top.push(["+ "+resto.length+" capítulos más", resto.reduce(function(a,x){return a+x[1];},0)]); }
     var donut='<div class="dcard"><div class="dc-text"><h3>Partidas por capítulo</h3><div class="donut-leg">'+
       top.map(function(x,i){return '<span class="li"><span class="sw" style="background:'+PALETA[i%PALETA.length]+'"></span><span class="t" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="v">'+x[1]+'</span></span>';}).join("")+'</div></div></div>';
-    $("dash").innerHTML = ptBanner+ring+donut;
+    $("dash").innerHTML = ring+donut;
     var rc=$("dash").querySelector("circle[data-off]");   // dispara la animación del trazo
     if(rc) requestAnimationFrame(function(){ rc.setAttribute("stroke-dashoffset", rc.getAttribute("data-off")); });
   }
