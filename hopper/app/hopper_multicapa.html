@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<!--
+  © 2026 Gerardo Marote — gerardomarote.com
+  Herramienta desarrollada a medida para uso interno de Kalam (normalización de mediciones MQT).
+  Su código y diseño son propiedad del autor: no está permitida su
+  redistribución ni la reutilización del código en otros proyectos
+  sin autorización.
+-->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E8590C'/%3E%3Ctext x='16' y='23' font-family='Arial' font-size='20' font-weight='bold' fill='white' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
@@ -40,7 +47,15 @@
   main{max-width:1280px;margin:0 auto;padding:26px 28px 60px}
 
   /* D · hero con más presencia: zona más alta y halo sutil del acento */
-  .dropzone{border:1.5px dashed var(--line);border-radius:var(--radius);background:radial-gradient(130% 130% at 50% -10%,var(--accent-soft) 0%,var(--panel) 58%);box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden;display:block;padding:60px 24px;text-align:center}
+  .dropzone{border:1.5px dashed var(--line);border-radius:var(--radius);background:radial-gradient(130% 130% at 50% -10%,var(--accent-soft) 0%,var(--panel) 58%);box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden;display:block;padding:42px 24px;text-align:center}
+  /* hero de producto (solo estado vacío) */
+  .pitch{max-width:780px;margin:26px auto 20px;text-align:center;animation:fade .5s ease both}
+  .pitch-h{font-size:31px;line-height:1.14;font-weight:800;letter-spacing:-.9px;color:var(--ink);margin:0 0 12px}
+  .pitch-em{background:linear-gradient(120deg,var(--accent),#F2A24A);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .pitch-sub{font-size:14.5px;line-height:1.55;color:var(--muted);max-width:600px;margin:0 auto 18px}
+  .pitch-chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
+  .pchip{font-size:12.5px;font-weight:600;color:var(--slate);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .pitch.hide{display:none}
   .dropzone:hover{border-color:var(--accent)}
   /* B · drag-over dramático: se eleva, brilla y el borde se anima (marching ants) */
   .dropzone.over{border-color:transparent;background:var(--accent-soft);transform:translateY(-4px) scale(1.006);box-shadow:0 18px 50px rgba(232,89,12,.20)}
@@ -216,6 +231,15 @@
   </div>
 </header>
 <main>
+  <div class="pitch" id="pitch">
+    <h1 class="pitch-h">Del MQT en bruto a <span class="pitch-em">tabla normalizada</span>, en segundos</h1>
+    <p class="pitch-sub">Arrastra cualquier Mapa de Quantidades —heterogéneo, multihoja, de cualquier estudio— y Hopper lo normaliza a una tabla única, lista para tu sistema de costes.</p>
+    <div class="pitch-chips">
+      <span class="pchip">⚡ Sin IA, resultados repetibles</span>
+      <span class="pchip">🔒 100% en tu navegador, sin servidor</span>
+      <span class="pchip">📊 Multihoja → una sola tabla</span>
+    </div>
+  </div>
   <label class="dropzone" id="drop">
     <input type="file" id="file" accept=".xlsx,.xls" multiple>
     <div class="dz-demo" aria-hidden="true">
@@ -813,8 +837,58 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // Procesa TODAS las hojas (no se descarta nada por nombre) y descarta solo las
   // que resulten ser duplicado/subconjunto de otra hoja mayor (evita doble conteo).
+  // ---- IDEMPOTENCIA: reconocer nuestra propia salida ----
+  // Si el libro ya es una tabla normalizada (cabecera canónica v3 exacta), no hay
+  // nada que detectar: se carga tal cual (passthrough). Así normalizar(normalizado)
+  // == normalizado, y se puede regenerar la hoja de costes sin re-procesar.
+  function cabeceraNormalizada(grid){
+    for(var i=0;i<Math.min(grid.length,6);i++){
+      var row=grid[i]; if(!row) continue;
+      var low=row.map(function(c){ return txt(c).toLowerCase(); });
+      var idx={}, hit=0;
+      for(var k=0;k<CANON.length;k++){ var j=low.indexOf(CANON[k]); idx[CANON[k]]=j; if(j>=0) hit++; }
+      if(hit===CANON.length) return {headerRow:i, idx:idx};   // exige las 13 columnas: firma inequívoca, no confundible con un MQT real
+    }
+    return null;
+  }
+  function desdeNormalizado(wb, XLSX){
+    var nombres=wb.SheetNames, hit=null, grid=null;
+    for(var n=0;n<nombres.length;n++){
+      var g=gridDe(wb.Sheets[nombres[n]], XLSX), h=cabeceraNormalizada(g);
+      if(h){ hit=h; grid=g; break; }
+    }
+    if(!hit) return null;
+    var idx=hit.idx, h0=hit.headerRow, rows=[];
+    for(var i=h0+1;i<grid.length;i++){
+      var gr=grid[i]; if(!gr) continue;
+      var o={};
+      CANON.forEach(function(c){ var j=idx[c]; o[c]=(j>=0 && j<gr.length && gr[j]!=null) ? gr[j] : ""; });
+      var algo=false; CANON.forEach(function(c){ if(txt(o[c])!=="") algo=true; });
+      if(!algo) continue;                                    // salta filas vacías
+      var m=o.medicion; o.medicion=(txt(m)===""?"":(typeof m==="number"?m:toNum(m))); if(o.medicion==null) o.medicion="";
+      var fo=toNum(o.fila_origen); o.fila_origen=(fo==null?(i+1):fo);
+      CANON.forEach(function(c){ if(c!=="medicion"&&c!=="fila_origen") o[c]=txt(o[c]); });
+      rows.push(rec(o));
+    }
+    if(!rows.length) return null;
+    // agrupar por hoja de origen (columna "hoja"), preservando el orden de aparición
+    var orden=[], grupos={};
+    rows.forEach(function(r){ var k=r.hoja||"Mediciones"; if(!grupos[k]){ grupos[k]=[]; orden.push(k); } grupos[k].push(r); });
+    var info={}, estruct=[];
+    orden.forEach(function(k){
+      var med=grupos[k];
+      info[k]={familia:"normalizado",headerRow:h0,cols:{},excluida:false,motivo:"",
+               filas:med.length,estMedidas:med.length,nMed:med.length,confianza:1,
+               avisos:[],titulos:titulosDeMed(med),passthrough:true};
+      estruct=estruct.concat(estDesdeMed(med));
+    });
+    return { mediciones:rows, notas:[{hoja:"",fila_origen:"",nota:"Fichero ya normalizado: cargado tal cual, sin re-detección (passthrough)."}],
+             estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD, esMQT:true, mqtScore:99, passthrough:true };
+  }
+
   function normalizar(wb, archivo, XLSX, overrides){
     overrides = overrides||{};
+    var pt=desdeNormalizado(wb, XLSX); if(pt) return pt;   // ya es nuestra salida -> passthrough
     var info={}, data={}, nombres=wb.SheetNames;
 
     // 1) parsear todas las hojas
@@ -1003,8 +1077,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       });
     });
     var algunMQT=archivos.some(function(a){return !a.excluido && a.esMQT;});
+    var usadosIt=items.filter(function(it,i){return !archivos[i].excluido;});
+    var todosPT=usadosIt.length>0 && usadosIt.every(function(it){return it.det.passthrough===true;});
     return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas,
-             esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
+             esMQT:algunMQT, passthrough:todosPT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   // ---- revisión humana de jerarquía: re-aplica los niveles de los títulos a las
@@ -1282,6 +1358,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
       $("detalleWrap").classList.add("hide"); $("jerarquiaWrap").classList.add("hide");
+      $("buscadorWrap").classList.add("hide");
       $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
       // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
       if(errores.length){
@@ -1290,9 +1367,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         $("avisos").innerHTML = errores.map(avisoError).join("");
       } else { $("avisosWrap").classList.add("hide"); }
       drop.classList.remove("compact");   // sin nada cargado, la dropzone vuelve a su tamaño grande
+      { var _p=$("pitch"); if(_p) _p.classList.remove("hide"); }   // muestra el hero del landing
       return;
     }
     drop.classList.add("compact");        // ya hay datos: colapsa a barra de una fila
+    { var _ph=$("pitch"); if(_ph) _ph.classList.add("hide"); }   // oculta el hero al cargar datos
     var m=merged.mediciones;
     renderJerarquia();
 
@@ -1452,9 +1531,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
     var peor=1; fuente.forEach(function(h){ if((h.nMed||0)>0){ var c=(h.confianza==null?1:h.confianza); if(c<peor) peor=c; } });
     var pct=Math.round(peor*100), ok=(aRev===0);
-    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
+    var pt=merged.passthrough;
+    var sub = ok ? ((pt?'<b>Fichero ya normalizado</b>':'<b>Extracción fiable</b>')+'<br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
                  : ('<b>'+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
-    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
+    var titulo = pt ? 'Mediciones normalizadas' : 'Confianza de la extracción';
+    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>'+titulo+'</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});

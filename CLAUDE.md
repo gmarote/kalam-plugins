@@ -60,9 +60,23 @@ codigo, partida, detalle, unidad, medicion`.
    `División`/`Capitulo`/`Subcapitulo`/`Sección` y filas `TOTAL …` intercaladas
    vacías, para copy/paste en la plantilla de costes de Kalam.
 
-### Estado actual (corpus de 35 MQT reales)
-- Confianza media **~98%**, **29/35 ≥98%**. 24.365 mediciones, 0 errores de
-  lectura. **Invariante**: 0 partidas con capítulo vacío teniendo ruta.
+### Idempotencia (passthrough)
+La app **reconoce su propia salida**: si el libro trae la cabecera canónica v3
+exacta (las **13 columnas**), el motor **no re-detecta** nada y lo carga tal cual
+(`desdeNormalizado` en el core) — reconstruye estructura de costes y títulos de
+jerarquía desde las propias filas (`estDesdeMed`/`titulosDeMed`), regrupando por
+la columna `hoja`. Así `normalizar(normalizado) == normalizado`. Pensado para el
+flujo **descargar → editar a mano → recargar → re-exportar / sacar la hoja de
+costes**. La UI lo señala con el **mismo anillo de éxito** (título «Mediciones
+normalizadas», sin prometer flujos). Exige las 13 columnas: firma inequívoca, no
+confundible con un MQT real (verificado: roundtrip de Palmira, 524 partidas
+idénticas; corpus intacto).
+
+### Estado actual (corpus de 40 MQT reales)
+- Confianza media **~98%** (autoevaluación). **30.044 mediciones**, 0 errores de
+  lectura. **Invariante**: 0 partidas con capítulo vacío teniendo ruta. El test de
+  regresión (`test-regresion.js /tmp/lote`) protege este recuento y la sincronía
+  `embebido == standalone`.
 - Validación **humana** hecha solo a fondo en 2 archivos (1 verde correcto, 1
   rojo bien marcado). El 98% es **autoevaluación**, no verdad medida.
 
@@ -82,9 +96,9 @@ codigo, partida, detalle, unidad, medicion`.
 - Si se consolida la multicapa, decidir si sustituye a la congelada.
 
 ### ⚠️ El corpus NO está en el repo
-Los 35 MQT están en **`/tmp/lote/MQT/`** (contenedor **efímero**: se borran al
-cerrar la sesión). Son datos de cliente; por eso no se versionan. Para reejecutar
-el banco de pruebas hay que volver a subirlos.
+Los 40 MQT están en **`/tmp/lote/`** (contenedor **efímero**: se borran al cerrar
+la sesión). Son datos de cliente; por eso no se versionan. Para reejecutar el
+banco de pruebas / la regresión hay que volver a subirlos.
 
 ## Convenciones
 - Rama de trabajo: `claude/magical-euler-dxi9y7`.
@@ -92,3 +106,6 @@ el banco de pruebas hay que volver a subirlos.
   (recuento de mediciones + confianza) para cazar regresiones.
 - No añadir librerías/dependencias. Mantenerlo simple ("no complicar").
 - Nunca producir salida mal en silencio: ante la duda, **señalar**.
+- **Aviso de propiedad**: `hopper_multicapa.html` lleva en la cabecera el
+  copyright de Gerardo Marote (uso interno de Kalam, sin redistribución). Mantenerlo
+  al editar. (La congelada `hopper_normalizador.html` aún no lo lleva.)

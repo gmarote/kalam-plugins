@@ -518,8 +518,58 @@
   // ---- API principal: normaliza un workbook (de XLSX.read) ----
   // Procesa TODAS las hojas (no se descarta nada por nombre) y descarta solo las
   // que resulten ser duplicado/subconjunto de otra hoja mayor (evita doble conteo).
+  // ---- IDEMPOTENCIA: reconocer nuestra propia salida ----
+  // Si el libro ya es una tabla normalizada (cabecera canónica v3 exacta), no hay
+  // nada que detectar: se carga tal cual (passthrough). Así normalizar(normalizado)
+  // == normalizado, y se puede regenerar la hoja de costes sin re-procesar.
+  function cabeceraNormalizada(grid){
+    for(var i=0;i<Math.min(grid.length,6);i++){
+      var row=grid[i]; if(!row) continue;
+      var low=row.map(function(c){ return txt(c).toLowerCase(); });
+      var idx={}, hit=0;
+      for(var k=0;k<CANON.length;k++){ var j=low.indexOf(CANON[k]); idx[CANON[k]]=j; if(j>=0) hit++; }
+      if(hit===CANON.length) return {headerRow:i, idx:idx};   // exige las 13 columnas: firma inequívoca, no confundible con un MQT real
+    }
+    return null;
+  }
+  function desdeNormalizado(wb, XLSX){
+    var nombres=wb.SheetNames, hit=null, grid=null;
+    for(var n=0;n<nombres.length;n++){
+      var g=gridDe(wb.Sheets[nombres[n]], XLSX), h=cabeceraNormalizada(g);
+      if(h){ hit=h; grid=g; break; }
+    }
+    if(!hit) return null;
+    var idx=hit.idx, h0=hit.headerRow, rows=[];
+    for(var i=h0+1;i<grid.length;i++){
+      var gr=grid[i]; if(!gr) continue;
+      var o={};
+      CANON.forEach(function(c){ var j=idx[c]; o[c]=(j>=0 && j<gr.length && gr[j]!=null) ? gr[j] : ""; });
+      var algo=false; CANON.forEach(function(c){ if(txt(o[c])!=="") algo=true; });
+      if(!algo) continue;                                    // salta filas vacías
+      var m=o.medicion; o.medicion=(txt(m)===""?"":(typeof m==="number"?m:toNum(m))); if(o.medicion==null) o.medicion="";
+      var fo=toNum(o.fila_origen); o.fila_origen=(fo==null?(i+1):fo);
+      CANON.forEach(function(c){ if(c!=="medicion"&&c!=="fila_origen") o[c]=txt(o[c]); });
+      rows.push(rec(o));
+    }
+    if(!rows.length) return null;
+    // agrupar por hoja de origen (columna "hoja"), preservando el orden de aparición
+    var orden=[], grupos={};
+    rows.forEach(function(r){ var k=r.hoja||"Mediciones"; if(!grupos[k]){ grupos[k]=[]; orden.push(k); } grupos[k].push(r); });
+    var info={}, estruct=[];
+    orden.forEach(function(k){
+      var med=grupos[k];
+      info[k]={familia:"normalizado",headerRow:h0,cols:{},excluida:false,motivo:"",
+               filas:med.length,estMedidas:med.length,nMed:med.length,confianza:1,
+               avisos:[],titulos:titulosDeMed(med),passthrough:true};
+      estruct=estruct.concat(estDesdeMed(med));
+    });
+    return { mediciones:rows, notas:[{hoja:"",fila_origen:"",nota:"Fichero ya normalizado: cargado tal cual, sin re-detección (passthrough)."}],
+             estructura:estruct, info:info, CANON:CANON, COSTHEAD:COSTHEAD, esMQT:true, mqtScore:99, passthrough:true };
+  }
+
   function normalizar(wb, archivo, XLSX, overrides){
     overrides = overrides||{};
+    var pt=desdeNormalizado(wb, XLSX); if(pt) return pt;   // ya es nuestra salida -> passthrough
     var info={}, data={}, nombres=wb.SheetNames;
 
     // 1) parsear todas las hojas
@@ -708,8 +758,10 @@
       });
     });
     var algunMQT=archivos.some(function(a){return !a.excluido && a.esMQT;});
+    var usadosIt=items.filter(function(it,i){return !archivos[i].excluido;});
+    var todosPT=usadosIt.length>0 && usadosIt.every(function(it){return it.det.passthrough===true;});
     return { mediciones:medic, notas:notas, estructura:estruct, archivos:archivos, hojas:hojas,
-             esMQT:algunMQT, CANON:CANON, COSTHEAD:COSTHEAD };
+             esMQT:algunMQT, passthrough:todosPT, CANON:CANON, COSTHEAD:COSTHEAD };
   }
 
   // ---- revisión humana de jerarquía: re-aplica los niveles de los títulos a las
