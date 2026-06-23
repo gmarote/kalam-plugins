@@ -1299,6 +1299,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(!merged){
       $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
       $("detalleWrap").classList.add("hide"); $("jerarquiaWrap").classList.add("hide");
+      $("buscadorWrap").classList.add("hide");
       $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
       // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
       if(errores.length){
