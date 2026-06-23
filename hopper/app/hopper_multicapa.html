@@ -1311,7 +1311,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     $("toolbar").classList.toggle("hide", m.length===0);
     var usados=merged.archivos.filter(function(a){return !a.excluido;}).length;
     var dupF=merged.archivos.length-usados;
-    $("summary").textContent = m.length+" mediciones · "+merged.notas.length+" notas · "+
+    $("summary").textContent = m.length+" partidas · "+merged.notas.length+" notas · "+
       usados+" archivo"+(usados!==1?"s":"")+(dupF?(" · "+dupF+" duplicado"+(dupF>1?"s":"")):"");
 
     // tarjetas KPI en dos grupos: izquierda = proceso/fiabilidad (se corresponde con
@@ -1325,7 +1325,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     var hero = (ultimoMs>0) ? ('<div class="hero-stat"><div class="hs-l"><span class="hs-ic">⚡</span><div>'+
         '<div class="hs-big">Normalizado en <span class="n" data-to="'+(ultimoMs/1000)+'" data-dec="1">0,0</span> s</div>'+
         '<div class="hs-sub">frente a días de trabajo manual</div></div></div>'+
-        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> mediciones<br>en '+nHojas+' hojas</div></div>') : "";
+        '<div class="hs-r"><span class="n" data-to="'+m.length+'">0</span> partidas<br>en '+nHojas+' hojas</div></div>') : "";
     $("kpis").innerHTML = m.length ? (hero+'<div class="kpis">'+
       kpi(usados,"archivo","archivos")+
       kpi(nHojas,"hoja procesada","hojas procesadas")+
@@ -1447,13 +1447,14 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       return;
     }
     var fuente=merged.hojas.filter(function(h){return !h.excluida;});
-    // CAPA 2: confianza real = media de la confianza por hoja, ponderada por nº de partidas
-    var num=0,den=0; fuente.forEach(function(h){ var w=h.nMed||0, c=(h.confianza==null?1:h.confianza); num+=c*w; den+=w; });
-    var conf=den?num/den:1, pct=Math.round(conf*100);
+    // CONFIANZA = el eslabón más débil: la confianza de la hoja MENOS fiable. Un promedio
+    // ponderado diluía los problemas (una hoja mala entre varias buenas daba 97%); aquí se
+    // ve la hoja peor, para no fingir fiabilidad.
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
-    var ok=(pct>=98 && aRev===0);
-    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' mediciones · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
-                 : ('<b>'+pct+'% de confianza</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
+    var peor=1; fuente.forEach(function(h){ if((h.nMed||0)>0){ var c=(h.confianza==null?1:h.confianza); if(c<peor) peor=c; } });
+    var pct=Math.round(peor*100), ok=(aRev===0);
+    var sub = ok ? ('<b>Extracción fiable</b><br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
+                 : ('<b>'+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
     var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>Confianza de la extracción</h3><div class="d-sub">'+sub+'</div></div></div>';
 
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
