@@ -245,6 +245,14 @@
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
+    // ¿esquema de capítulos por LETRA real (A, B, C…)? Solo si hay ≥3 letras sueltas
+    // distintas como título: una letra aislada ("E ESTALEIRO") es un capítulo más, no un
+    // esquema. Con esquema real, los códigos numéricos reinician bajo cada letra y cuelgan
+    // un nivel por debajo (si no, "1 ESTALEIRO" colisiona con la letra "A" y la machaca).
+    var _ltr={}; for(var _i=start;_i<grid.length;_i++){ var _rw=grid[_i]; if(!_rw) continue;
+      var _c=txt(cell(_rw,cols.code)).replace(/\s+/g,""), _d=txt(cell(_rw,cols.desc)), _q=toNum(cell(_rw,cols.qty));
+      if(/^[A-Z]\.?$/.test(_c) && _d && _q===null) _ltr[_c.replace(".","")]=1; }
+    var esquemaLetras = Object.keys(_ltr).length>=3;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -302,7 +310,7 @@
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0) + (textCh ? 1 : 0);   // bajo un capítulo-macro de texto, los códigos numéricos cuelgan un nivel más abajo
+      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto, también
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
