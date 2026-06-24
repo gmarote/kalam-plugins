@@ -363,6 +363,13 @@
   // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
   // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
   function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
+  // ¿el nombre de hoja es una DISCIPLINA (capítulo)? ARQUITECTURA, ESTRUTURA, AVAC, ÁGUAS…
+  // Admite prefijo de código ("A - ", "3.", "MQT-"). No incluye divisiones (BLOCO/edifício).
+  function esDisciplina(s){ return /^\s*(?:[A-Za-z0-9]{0,3}[.\-\s)]+\s*)?(arquitect?ura|arquitetura|estruturas?|estabilidade|funda[cç][õo]es|bet[ãa]o\b|avac|climatiza\w*|ventila\w*|electricidade|eletricidade|el[ée]ctrica|energia|[áa]guas|abastecimento|rede hidr[áa]ulica|esgotos|drenagem|scie|seguran[cç]a|ited\d?|telecomunica\w*|gtc|gest[ãa]o t[ée]cnica|g[áa]s|rede de g[áa]s|elevadore?s?|ascensore?s?|paisagismo|demoli[cç][õo]es)\s*\d*\s*$/i.test(String(s||"")); }
+  // limpia el prefijo de código del nombre de hoja: "A - ARQUITETURA"->"ARQUITETURA",
+  // "2.DEMOLIÇÕES"->"DEMOLIÇÕES", "MQT-AVAC"->"AVAC". Exige separador real (. - )) para no
+  // partir nombres con espacios ("REDE DE GÁS" se mantiene).
+  function limpiaPrefijoHoja(s){ var t=String(s||"").trim(); var r=t.replace(/^[A-Za-z0-9]{1,4}\s*[.\-)]\s*/, ""); return r.trim()||t; }
   // numeral romano como código de título (I., II., III., IV.…): en hoja genérica marca
   // el nivel CAPÍTULO; los títulos con número arábigo (0., 1.…) que cuelgan son subcapítulos.
   function esRomano(s){ s=String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").toUpperCase();
@@ -683,6 +690,32 @@
         info[h].resumo=true;
       });
     }
+
+    // 1c) HOJA-DISCIPLINA: el nombre de hoja es una disciplina (ARQUITECTURA, AVAC, ÁGUAS…) ->
+    //     ES el capítulo. Los títulos internos bajan un nivel (cap->sub->secc) y lo más profundo
+    //     se conserva en la ruta. No se toca si la disciplina YA figura como capítulo (evita
+    //     duplicar) ni si un resumo/índice ya fijó la jerarquía. Solo familia código (en formato
+    //     el nombre de hoja ya hace de capítulo).
+    nombres.forEach(function(h){
+      var inf=info[h];
+      if(inf.excluida || inf.resumo || inf.familia!=="codigo" || !esDisciplina(h)) return;
+      var med=data[h].medRows; if(!med.length) return;
+      var disc=limpiaPrefijoHoja(h), discN=disc.toUpperCase().replace(/\s+/g,"");
+      // ya OK si la disciplina ES exactamente un capítulo (no por contención: «REDE DE
+      // DISTRIBUIÇÃO DE ENERGIA» contiene «ENERGIA» pero no es el capítulo ENERGIA)
+      var yaEs=false; med.forEach(function(r){ if(limpiaPrefijoHoja(r.capitulo).toUpperCase().replace(/\s+/g,"")===discN) yaEs=true; });
+      if(yaEs) return;   // la disciplina ya está como capítulo: no re-nivelar
+      var base=titulosDeMed(med).filter(function(t){ return t.nivel<=3; });
+      var niveles=[]; base.forEach(function(t){ if(txt(t.texto) && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
+      if(!niveles.length) return;
+      var minN=Math.min.apply(null,niveles), shift=2-minN, remap={};   // sube la hoja a capítulo (nivel 1): los internos +1
+      niveles.forEach(function(N){ remap[N]=Math.max(0,N+shift); });
+      var fin=construirTitulos(base, remap, disc, 1);
+      aplicarTitulos(med, fin, 3);
+      data[h].est=estDesdeMed(med);
+      info[h].titulos=titulosDeMed(med);
+      info[h].hojaCapitulo=disc;
+    });
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
     nombres.forEach(function(A){
