@@ -92,25 +92,31 @@ function escribir(wb, ruta){ fs.writeFileSync(ruta, XLSX.write(wb,{type:"buffer"
 function hojaFormulada(cf){
   var sr=cf.startRow, ws={}, nC=cf.labels.length;
   var NUM={4:1,6:1,9:1,11:1,14:1,17:1,20:1,23:1,24:1,26:1,28:1,31:1,37:1,38:1,39:1,40:1,41:1,42:1,44:1,47:1};
-  cf.labels.forEach(function(lab,c){ ws[XLSX.utils.encode_cell({r:sr-2,c:c})]={t:"s",v:lab,s:{font:{bold:true,sz:9},fill:{patternType:"solid",fgColor:{rgb:"D9D9D9"}},alignment:{wrapText:true,vertical:"center"}}}; });
+  // bandas por tipo de fila: azules degradados (capítulo más intenso) y gris para totales
+  var BAND={ "División":{bg:"1F3864",fg:"FFFFFF"}, "Capitulo":{bg:"2F5496",fg:"FFFFFF"},
+             "Subcapitulo":{bg:"8EAADB",fg:"1A1A1A"}, "Sección":{bg:"D9E1F2",fg:"1A1A1A"} };
+  var RB={3:1,6:1,8:1,11:1,14:1,17:1,24:1,28:1,32:1,37:1,42:1,44:1,47:1};   // borde derecho: separa bloques (D,G,I,L,O,R,Y,AC,AG,AL,AQ,AS,AV)
+  var rb={style:"thin",color:{rgb:"808080"}};
+  cf.labels.forEach(function(lab,c){ var s={font:{bold:true,sz:9},fill:{patternType:"solid",fgColor:{rgb:"D9D9D9"}},alignment:{wrapText:true,vertical:"center"}}; if(RB[c]) s.border={right:rb}; ws[XLSX.utils.encode_cell({r:sr-2,c:c})]={t:"s",v:lab,s:s}; });
   cf.rows.forEach(function(row,ri){
-    var er=sr-1+ri;
-    for(var c=0;c<nC;c++){ var cell=row[c]; if(cell==null) continue;
+    var er=sr-1+ri, nat=String(row[1]||""), esTot=/^TOTAL/.test(String(row[3]||""));
+    var band = BAND[nat] ? BAND[nat] : (esTot ? {bg:"D9D9D9",fg:"1A1A1A"} : null);
+    for(var c=0;c<nC;c++){ var cell=row[c];
+      if(cell==null && !band && !RB[c]) continue;                // partida: celdas con contenido + columnas con borde; banda: toda la fila
       var ad=XLSX.utils.encode_cell({r:er,c:c}), o;
-      if(typeof cell==="object" && cell.f!=null) o={t:"n",f:cell.f,v:0};   // SheetJS exige valor cacheado para escribir la fórmula; Excel recalcula al abrir/pegar
+      if(cell==null) o={t:"s",v:""};
+      else if(typeof cell==="object" && cell.f!=null) o={t:"n",f:cell.f,v:0};   // SheetJS exige valor cacheado; Excel recalcula al abrir/pegar
       else if(typeof cell==="number") o={t:"n",v:cell};
       else o={t:"s",v:String(cell)};
       var s={font:{sz:9}}; if(NUM[c]) s.numFmt="#,##0.00";
-      var esTit=/^(Capitulo|Subcapitulo|Sección|División)$/.test(String(row[1]||"")), esTot=/^TOTAL/.test(String(row[3]||""));
-      if(esTit) s.font={sz:9,bold:true};
-      if(esTot){ s.font={sz:9,bold:true}; s.fill={patternType:"solid",fgColor:{rgb:"EDEDED"}}; }
+      if(band){ s.fill={patternType:"solid",fgColor:{rgb:band.bg}}; s.font={sz:9,bold:true,color:{rgb:band.fg}}; }
+      if(RB[c]) s.border={right:rb};
       o.s=s; ws[ad]=o;
     }
   });
-  var endR=sr-1+cf.rows.length-1;
-  ws["!ref"]=XLSX.utils.encode_range({s:{r:sr-2,c:0},e:{r:Math.max(endR,sr-2),c:nC-1}});
+  var endR=sr-1+cf.rows.length-1, ref=XLSX.utils.encode_range({s:{r:sr-2,c:0},e:{r:Math.max(endR,sr-2),c:nC-1}});
+  ws["!ref"]=ref; ws["!autofilter"]={ref:ref};
   var W=[10,12,6,60,11]; for(var c=5;c<nC;c++) W.push(13); ws["!cols"]=W.map(function(w){return {wch:w};});
-  ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:sr-2,c:0},e:{r:Math.max(endR,sr-2),c:nC-1}})};
   return ws;
 }
 
