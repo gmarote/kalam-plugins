@@ -208,6 +208,24 @@
       }
       if(pre>=0 && preN>=3 && deep>=2){ cols.codePrefix=pre; used[pre]=1; }
     }
+    // columna-SECCIÓN: prefijo de capítulo en columna aparte (numérica «1.», «2.»…) a la
+    // izquierda del código, con el NOMBRE del capítulo en la fila donde el código va vacío.
+    // Señal específica: ≥3 valores cortos distintos y ≥3 filas «cabecera de capítulo»
+    // (esa columna llena, código vacío, descripción en MAYÚSCULAS).
+    if(cols.codePrefix==null && cols.code!=null && cols.desc!=null){
+      var sp=-1, spN=0;
+      for(var pc2=0; pc2<cols.code; pc2++){
+        if(used[pc2]) continue;
+        var heads=0, vals={};
+        for(var rr2=start; rr2<grid.length && rr2<start+800; rr2++){
+          var rw2=grid[rr2]||[];
+          var pv=txt(cell(rw2,pc2)).replace(/\s+/g,""), cv=txt(cell(rw2,cols.code)), dv=txt(cell(rw2,cols.desc));
+          if(pv && /^\d{1,3}\.?$/.test(pv)){ vals[pv]=1; if(!cv && dv && isCaps(dv)) heads++; }
+        }
+        if(heads>spN && Object.keys(vals).length>=3){ spN=heads; sp=pc2; }
+      }
+      if(sp>=0 && spN>=3){ cols.codePrefix=sp; used[sp]=1; }
+    }
 
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
