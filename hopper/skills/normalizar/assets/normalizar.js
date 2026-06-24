@@ -87,6 +87,33 @@ function estilarCostes(ws){
 }
 function escribir(wb, ruta){ fs.writeFileSync(ruta, XLSX.write(wb,{type:"buffer",bookType:"xlsx"})); }
 
+// hoja de costes FORMULADA (plantilla de estudios, A..AV): coloca etiquetas en la fila
+// (startRow-1) y los datos desde startRow, escribiendo celdas-fórmula reales ({f}).
+function hojaFormulada(cf){
+  var sr=cf.startRow, ws={}, nC=cf.labels.length;
+  var NUM={4:1,6:1,9:1,11:1,14:1,17:1,20:1,23:1,24:1,26:1,28:1,31:1,37:1,38:1,39:1,40:1,41:1,42:1,44:1,47:1};
+  cf.labels.forEach(function(lab,c){ ws[XLSX.utils.encode_cell({r:sr-2,c:c})]={t:"s",v:lab,s:{font:{bold:true,sz:9},fill:{patternType:"solid",fgColor:{rgb:"D9D9D9"}},alignment:{wrapText:true,vertical:"center"}}}; });
+  cf.rows.forEach(function(row,ri){
+    var er=sr-1+ri;
+    for(var c=0;c<nC;c++){ var cell=row[c]; if(cell==null) continue;
+      var ad=XLSX.utils.encode_cell({r:er,c:c}), o;
+      if(typeof cell==="object" && cell.f!=null) o={t:"n",f:cell.f,v:0};   // SheetJS exige valor cacheado para escribir la fórmula; Excel recalcula al abrir/pegar
+      else if(typeof cell==="number") o={t:"n",v:cell};
+      else o={t:"s",v:String(cell)};
+      var s={font:{sz:9}}; if(NUM[c]) s.numFmt="#,##0.00";
+      var esTit=/^(Capitulo|Subcapitulo|Sección|División)$/.test(String(row[1]||"")), esTot=/^TOTAL/.test(String(row[3]||""));
+      if(esTit) s.font={sz:9,bold:true};
+      if(esTot){ s.font={sz:9,bold:true}; s.fill={patternType:"solid",fgColor:{rgb:"EDEDED"}}; }
+      o.s=s; ws[ad]=o;
+    }
+  });
+  var endR=sr-1+cf.rows.length-1;
+  ws["!ref"]=XLSX.utils.encode_range({s:{r:sr-2,c:0},e:{r:Math.max(endR,sr-2),c:nC-1}});
+  var W=[10,12,6,60,11]; for(var c=5;c<nC;c++) W.push(13); ws["!cols"]=W.map(function(w){return {wch:w};});
+  ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:sr-2,c:0},e:{r:Math.max(endR,sr-2),c:nC-1}})};
+  return ws;
+}
+
 // --- CLI ---
 var args=process.argv.slice(2), outDir=".", files=[];
 for(var i=0;i<args.length;i++){ if(args[i]==="--out"){ outDir=args[++i]; } else files.push(args[i]); }
@@ -108,12 +135,13 @@ if(merged.notas.length){ var wn=XLSX.utils.json_to_sheet(merged.notas); estilar(
 var base = cargados.length===1 ? cargados[0].archivo.replace(/\.(xlsx|xlsm|xls)$/i,"") : "mediciones_acumuladas";
 var f1=path.join(outDir, base+"_normalizado.xlsx"); escribir(wb1, f1);
 
-// 2) Hoja de costes
+// 2) Hoja de costes FORMULADA (plantilla de estudios, A..AV; pegar a partir de la fila 7)
 var f2=null;
 if(merged.estructura && merged.estructura.length){
-  var ws2=XLSX.utils.aoa_to_sheet([merged.COSTHEAD].concat(filasCostes(merged.estructura)));
-  estilarCostes(ws2);
-  var wb2=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb2,ws2,"Hoja de costes");
+  var cf=core.costesFormulados(merged.estructura, 7);
+  var ws2=hojaFormulada(cf);
+  var wb2=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb2,ws2,"HOJA DE ESTUDIOS");
+  wb2.Workbook={CalcPr:{fullCalcOnLoad:true}};   // Excel recalcula las fórmulas al abrir
   f2=path.join(outDir, (cargados.length===1?base:"estudio_acumulado")+"_hoja-de-costes.xlsx"); escribir(wb2, f2);
 }
 

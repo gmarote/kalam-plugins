@@ -876,6 +876,80 @@
     });
     return est;
   }
+
+  // ---- HOJA DE COSTES FORMULADA (plantilla de estudios de Kalam, columnas A..AV) ----
+  // Consume la estructura (títulos + partidas, sin totales) y devuelve {labels, rows} para
+  // pegar a partir de la fila `startRow` (por defecto 7) en la plantilla. Cada partida lleva
+  // las fórmulas deterministas (F..AV) referidas a su propia fila + constantes de la plantilla
+  // ($AC$4 jornal, $AO$3 logística, $AR$4 coef, $AR$6 redondeo). Las columnas de INPUT
+  // (precios, rendimientos…) quedan vacías: el motor no inventa. Inserta filas TOTAL con el
+  // convenio de la plantilla: E en cascada (sección suma G de sus partidas; subcapítulo suma
+  // las secciones; capítulo suma los subcapítulos) y J como SUM(L) del rango del bloque.
+  // Una celda-fórmula se devuelve como {f:"..."} (sin "="), tal cual la consume SheetJS.
+  var COSTHEAD_F = ["Código","Nat","Ud","Partida","CanPres","PrPres","ImpPres","Comentarios",
+    "Notas a incluir en el PPTO","CanPres","PrPres","ImpPres","Comentario","Unitario Ajuste",
+    "Total Ajuste","Comentario","Unitario AS","Total AS","Nombre subcont.","Unit Subcontrata",
+    "Total Coste","Unit Subcontrata","% Dto.en Coste","Total Coste","Total Coste Subcontrata",
+    "Rendimiento por Operario (Ud/Jornal)","Total Jornales","Unitario M.O.","Total M.O.",
+    "Nombre Casa de materiales","Unitario Material","Materiales Obra civil","Materiales Instalaciones",
+    "Unitario Medios Auxiliares","Unitario Maquinaria","Unitario Gestión de Residuos",
+    "Unitario Control de Calidad","Total Servicios","SUMATORIO COSTE KALAM","TOTAL COSTE SECO (CD)",
+    "LOGÍSTICA","TOTAL COSTE FINAL KALAM","UNITARIO COSTE FINAL KALAM","Redondeo Unitarios",
+    "Unitario Venta","% SUB.","% KALAM","Comprobacion"];
+  function costesFormulados(estructura, startRow){
+    startRow = startRow||7;
+    var out=[];                                  // cada fila = array(48) de celdas (valor | {f} | null)
+    function fila(){ return startRow+out.length; }   // nº de fila Excel de la PRÓXIMA fila a empujar
+    function vacia(){ var a=new Array(48); for(var i=0;i<48;i++) a[i]=null; return a; }
+    var open={};                                 // nivel(1..3) -> {titleRow, childTotals:[], partidaG:[]}
+    function titulo(nat, codigo, partida){ var r=vacia(); r[0]=codigo||""; r[1]=nat; r[3]=partida||""; out.push(r); return fila()-1; }
+    function partida(rw){
+      var R=fila(), r=vacia();
+      r[0]=rw.codigo||""; r[1]="Partida"; r[2]=rw.ud||""; r[3]=rw.partida||"";
+      r[4]=(rw.cantidad===""||rw.cantidad==null)?null:rw.cantidad;     // E = CanPres (nuestra medición)
+      r[5]={f:"AS"+R}; r[6]={f:"ROUND(E"+R+"*F"+R+",2)"};
+      r[9]={f:"E"+R}; r[10]={f:"AQ"+R}; r[11]={f:"ROUND(J"+R+"*K"+R+",2)"};
+      r[14]={f:"E"+R+"*N"+R}; r[17]={f:"E"+R+"*Q"+R};
+      r[20]={f:"E"+R+"*T"+R+"*(1-W"+R+")"}; r[23]={f:"E"+R+"*V"+R+"*(1-W"+R+")"}; r[24]={f:"U"+R+"+X"+R};
+      r[26]={f:"IF(Z"+R+"=0,0,E"+R+"/Z"+R+")"}; r[27]={f:"IF(E"+R+"=0,0,AC"+R+"/E"+R+")"}; r[28]={f:"AA"+R+"*$AC$4"};
+      r[31]={f:"AE"+R+"*E"+R}; r[37]={f:"(AH"+R+"+AI"+R+"+AJ"+R+"+AK"+R+")*E"+R};
+      r[38]={f:"AC"+R+"+AF"+R+"+AG"+R+"+AL"+R}; r[39]={f:"O"+R+"+R"+R+"+Y"+R+"+AM"+R};
+      r[40]={f:"AN"+R+"*$AO$3"}; r[41]={f:"AN"+R+"+AO"+R}; r[42]={f:"IF(E"+R+"=0,0,AP"+R+"/E"+R+")"};
+      r[43]=0;
+      r[44]={f:"MROUND(IF(AQ"+R+"=0,0,(Y"+R+"*AT"+R+"+AM"+R+"*AU"+R+"+AO"+R+"*AU"+R+"+R"+R+"*AU"+R+"+O"+R+"*AU"+R+")/E"+R+"),IF(AR"+R+"=0,$AR$6,AR"+R+"))"};
+      r[45]={f:"$AR$4"}; r[46]={f:"$AR$4"}; r[47]={f:"IF(AS"+R+"=0,0,AS"+R+"/AQ"+R+")"};
+      out.push(r);
+      var d=open[3]||open[2]||open[1]; if(d) d.partidaG.push(R);
+      return R;
+    }
+    function sumaG(rows){ if(!rows.length) return "0"; var mn=Math.min.apply(null,rows), mx=Math.max.apply(null,rows);
+      return mn===mx ? "SUM(G"+mn+")" : "SUM(G"+mn+":G"+mx+")"; }
+    function totalNivel(nivel){
+      var fr=open[nivel]; if(!fr) return; var R=fila(), r=vacia();
+      r[3]= nivel===1?"TOTAL CAPÍTULO":nivel===2?"TOTAL SUBCAPÍTULO":"TOTAL SECCIÓN";
+      var partes=[]; if(fr.childTotals.length) partes.push(fr.childTotals.map(function(x){return "E"+x;}).join("+"));
+      if(fr.partidaG.length) partes.push(sumaG(fr.partidaG));
+      r[4]={f: partes.length?partes.join("+"):"0"};                     // E (col 4): cascada de venta
+      r[9]={f:"SUM(L"+fr.titleRow+":L"+R+")"};                           // J (col 9): coste = SUM(L) del rango del bloque
+      out.push(r); delete open[nivel];
+      var padre=open[nivel-1]; if(padre) padre.childTotals.push(R);      // el padre suma este total
+    }
+    function cerrar(L){ for(var k=3;k>=L;k--) if(open[k]) totalNivel(k); }
+    var NIV={Capitulo:1,Subcapitulo:2,"Sección":3};
+    (estructura||[]).forEach(function(e){
+      if(e.nat==="__archivo__"){ cerrar(1); titulo("__archivo__", "", "▼ "+e.partida); return; }
+      if(e.nat==="División"){ cerrar(1); titulo("División", e.codigo, e.partida); return; }
+      var L=NIV[e.nat];
+      if(L){ cerrar(L); var tr=titulo(e.nat, e.codigo, e.partida); open[L]={titleRow:tr, childTotals:[], partidaG:[]}; return; }
+      partida(e);                                                        // Partida
+    });
+    cerrar(1);
+    // TOTAL PRESUPUESTO: suma directa de todas las partidas
+    if(out.length){ var R=fila(), tr=vacia(); tr[3]="TOTAL PRESUPUESTO";
+      tr[4]={f:"SUM(G"+startRow+":G"+(R-1)+")"}; tr[9]={f:"SUM(L"+startRow+":L"+(R-1)+")"}; out.push(tr); }
+    return { labels:COSTHEAD_F, rows:out, startRow:startRow };
+  }
+
   // construye la lista de títulos final para la revisión por RAMA DE EJEMPLO: un remapeo
   // de nivel por hoja (lvlRemap: {nivelDetectado -> nivelEsquema}; -1 = no es título) que se
   // aplica a TODOS los títulos de ese nivel. Si la hoja se designa como nivel (hojaNivel + su
@@ -891,9 +965,9 @@
     return lst;
   }
 
-  var API={CANON:CANON,COSTHEAD:COSTHEAD,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
+  var API={CANON:CANON,COSTHEAD:COSTHEAD,COSTHEAD_F:COSTHEAD_F,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
            parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
-           aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,
+           aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,costesFormulados:costesFormulados,
            clavesDe:clavesDe,contencion:contencion,acumular:acumular};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
