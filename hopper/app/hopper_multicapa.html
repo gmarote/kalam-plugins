@@ -1101,18 +1101,24 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     return out;
   }
   function aplicarTitulos(medRows, titulos, maxNivel){
-    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe; los más profundos se conservan tal cual
-    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && t.nivel<=maxNivel;})   // incluye marcadores de borrado (texto "")
+    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe columnas; con revisión completa (>=3) la ruta lleva TODOS los niveles
+    var full = maxNivel>=3;
+    // en revisión completa se incluyen también los niveles profundos (4+): NO ocupan
+    // columna (solo hay 4: div/cap/subcap/secc) pero SÍ entran en la ruta. Así el
+    // migajero queda completo y no se pierde ningún título aunque la obra anide más.
+    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && (full || t.nivel<=maxNivel);})   // incluye marcadores de borrado (texto "")
                         .slice().sort(function(a,b){return (a.fila||0)-(b.fila||0);});
     medRows.forEach(function(p){
-      var L=["","","",""];   // [división, capítulo, subcapítulo, sección]
+      var L=[];   // niveles activos por encima de la partida (índice = nivel; 0=div 1=cap 2=subcap 3=secc, 4+=solo ruta)
       for(var i=0;i<ts.length;i++){
         if((ts[i].fila||0) > (p.fila_origen||0)) break;   // el título aplica desde su fila (incluida) hacia abajo
-        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<=maxNivel;k++) L[k]="";
+        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<L.length;k++) L[k]="";   // un título resetea los niveles por debajo
       }
-      p.division=L[0]; p.capitulo=L[1]; p.subcapitulo=L[2];
-      if(maxNivel>=3) p.seccion=L[3];                          // si la sección no se revisa, se conserva la del motor
-      p.ruta=[L[0],L[1],L[2],(maxNivel>=3?L[3]:p.seccion)].filter(Boolean).join(" > ");
+      p.division=L[0]||""; p.capitulo=L[1]||""; p.subcapitulo=L[2]||"";
+      if(full) p.seccion=L[3]||"";                             // si la sección no se revisa, se conserva la del motor
+      var pth=[L[0]||"",L[1]||"",L[2]||"",(full?(L[3]||""):p.seccion)];
+      if(full) for(var d=4;d<L.length;d++) pth.push(L[d]||"");   // niveles profundos: solo en la ruta (sin columna)
+      p.ruta=pth.filter(Boolean).join(" > ");
     });
     return medRows;
   }
@@ -1242,12 +1248,13 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   // nivel efectivo por nivel detectado: override explícito, o desplazamiento por designar la hoja
   function efRemap(niveles, hn, lv){
     lv=lv||{}; var minN=niveles.length?Math.min.apply(null,niveles):1, shift=(hn!=null)?((hn+1)-minN):0, out={};
-    niveles.forEach(function(N){ out[N]=(lv[N]!=null)?lv[N]:Math.max(0,Math.min(3,N+shift)); });
+    niveles.forEach(function(N){ out[N]=(lv[N]!=null)?lv[N]:Math.max(0,N+shift); });   // sin tope superior: lo que pase de sección (3) cae a nivel 4+ = solo en la ruta (no se pierde)
     return out;
   }
   function selNivel(cls, val, conNo){
     var o='<select class="'+cls+'">';
     for(var i=0;i<4;i++) o+='<option value="'+i+'"'+(val===i?" selected":"")+'>'+NIVNAME[i]+'</option>';
+    o+='<option value="'+(val>=4?val:4)+'"'+(val>=4?" selected":"")+'>· solo en ruta</option>';   // por debajo de sección: sin columna propia, va al migajero
     if(conNo) o+='<option value="-1"'+(val===-1?" selected":"")+'>· no es título</option>';
     return o+'</select>';
   }
@@ -1256,7 +1263,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     cargados.forEach(function(c, fi){
       Object.keys(c.det.info).forEach(function(h){
         var inf=c.det.info[h]; if(inf.excluida) return;
-        var tit=(inf.titulos||[]).filter(function(t){ return t.nivel<=2 && (t.texto||"").trim(); });
+        var tit=(inf.titulos||[]).filter(function(t){ return t.nivel<=3 && (t.texto||"").trim(); });   // incluye sección (3): al subir niveles puede caer a «solo en ruta»
         if(!tit.length) return;
         hay=true;
         var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{}, pers=!!jerLocal[k];
@@ -1321,7 +1328,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         if(c.det.info[h].excluida) return;
         var k=jerKey(fi,h), eff=efFor(k), hn=eff.hoja, lv=eff.lvl||{};
         if((!lv||!Object.keys(lv).length) && hn==null) return;
-        var base=(c.det.info[h].titulos||[]).filter(function(t){ return t.nivel<=2; });
+        var base=(c.det.info[h].titulos||[]).filter(function(t){ return t.nivel<=3; });
         var niveles=[]; base.forEach(function(t){ if((t.texto||"").trim() && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
         var fin=core.construirTitulos(base, efRemap(niveles, hn, lv||{}), h, hn);
         core.aplicarTitulos(c.det.mediciones.filter(function(r){ return r.hoja===h; }), fin, 3);
