@@ -782,18 +782,24 @@
     return out;
   }
   function aplicarTitulos(medRows, titulos, maxNivel){
-    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe; los más profundos se conservan tal cual
-    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && t.nivel<=maxNivel;})   // incluye marcadores de borrado (texto "")
+    maxNivel = (maxNivel==null ? 3 : maxNivel);   // hasta qué nivel reescribe columnas; con revisión completa (>=3) la ruta lleva TODOS los niveles
+    var full = maxNivel>=3;
+    // en revisión completa se incluyen también los niveles profundos (4+): NO ocupan
+    // columna (solo hay 4: div/cap/subcap/secc) pero SÍ entran en la ruta. Así el
+    // migajero queda completo y no se pierde ningún título aunque la obra anide más.
+    var ts=(titulos||[]).filter(function(t){return t.nivel>=0 && (full || t.nivel<=maxNivel);})   // incluye marcadores de borrado (texto "")
                         .slice().sort(function(a,b){return (a.fila||0)-(b.fila||0);});
     medRows.forEach(function(p){
-      var L=["","","",""];   // [división, capítulo, subcapítulo, sección]
+      var L=[];   // niveles activos por encima de la partida (índice = nivel; 0=div 1=cap 2=subcap 3=secc, 4+=solo ruta)
       for(var i=0;i<ts.length;i++){
         if((ts[i].fila||0) > (p.fila_origen||0)) break;   // el título aplica desde su fila (incluida) hacia abajo
-        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<=maxNivel;k++) L[k]="";
+        var n=ts[i].nivel; L[n]=ts[i].texto; for(var k=n+1;k<L.length;k++) L[k]="";   // un título resetea los niveles por debajo
       }
-      p.division=L[0]; p.capitulo=L[1]; p.subcapitulo=L[2];
-      if(maxNivel>=3) p.seccion=L[3];                          // si la sección no se revisa, se conserva la del motor
-      p.ruta=[L[0],L[1],L[2],(maxNivel>=3?L[3]:p.seccion)].filter(Boolean).join(" > ");
+      p.division=L[0]||""; p.capitulo=L[1]||""; p.subcapitulo=L[2]||"";
+      if(full) p.seccion=L[3]||"";                             // si la sección no se revisa, se conserva la del motor
+      var pth=[L[0]||"",L[1]||"",L[2]||"",(full?(L[3]||""):p.seccion)];
+      if(full) for(var d=4;d<L.length;d++) pth.push(L[d]||"");   // niveles profundos: solo en la ruta (sin columna)
+      p.ruta=pth.filter(Boolean).join(" > ");
     });
     return medRows;
   }
