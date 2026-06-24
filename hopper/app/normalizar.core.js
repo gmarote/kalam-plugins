@@ -268,7 +268,7 @@
       // capítulo-macro como TEXTO en la columna de código (heading en MAYÚSCULAS, sin código
       // numérico, descripción vacía; p.ej. ARQUITECTURA/ESTRUTURAS en la columna ARTIGO). Los
       // códigos numéricos que cuelgan (1, 2…) bajan un nivel: pasan a subcapítulo.
-      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code)){
+      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code) && !esHojaGenerica(code)){
         if(!(cur && cur.nivel===1 && cur.code===code)){
           stats.titulo++; textCh=true; titles={1:code}; cur={code:code,desc:code,nivel:1};
           pushEst({codigo:"",nat:natDe(titles,1),ud:"",partida:code,cantidad:""});
