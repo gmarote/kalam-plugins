@@ -83,16 +83,21 @@ patrón nuevo, **enseñárselo al motor** (que quede resuelto para siempre). Rut
    filas-título (código sin cantidad) y en cómo se escribe el código.
 3. **Compáralo con las causas ya conocidas** (`references/capas-y-correccion.md`):
    cabecera escondida (`ARQ 1.`, `A 1.1.1.1`, `1.`), nivel constante (`A.x`), cero
-   final (`1.0`), código en dos columnas (Bloco). Si es una de ellas y aun así
-   falla, comprueba por qué la receta no disparó.
+   final (`1.0`), código en dos columnas (Bloco o columna-`SECÇÃO` numérica),
+   esquema por letra (`A`/`B`/`C` con números reiniciando debajo), nombre de hoja =
+   disciplina (capítulo), rótulo de documento colado como capítulo. Si es una de
+   ellas y aun así falla, comprueba por qué la regla/receta no disparó.
 4. **Si es un patrón NUEVO**, añádelo como **receta de capa 3** en
    `../../app/normalizar.core.js`:
    - una hipótesis en el banco del reintento (gatillo: «jerarquía rota»), que se
      queda **solo si la confianza sube** (nunca empeora), o
    - una normalización de código si es general y segura.
 5. **Re-incrusta el motor en el HTML** (`hopper_multicapa.html`) y **mide sin
-   regresión**: `node app/banco-pruebas.js <corpus>` (recuento de mediciones +
-   auto-éxito) antes/después. La copia embebida debe quedar idéntica al standalone.
+   regresión** con `node app/test-regresion.js <corpus>`: comprueba invariantes
+   (0 pérdidas silenciosas, capítulo/ruta coherente, **embebido == standalone**),
+   compara el snapshot por archivo (bajadas de mediciones) y el **oráculo
+   ARQUITECTURA** (que la disciplina siga cayendo en capítulo). `banco-pruebas.js`
+   sirve para ver el auto-éxito global. Mide **antes y después** de cada cambio.
 6. **Confirma con el usuario** el resultado de esa hoja y entrega.
 
 Cada arreglo así **no es un parche de un archivo: es una regla permanente** que
