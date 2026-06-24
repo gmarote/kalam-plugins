@@ -36,6 +36,23 @@ largo), junto con la unidad (tokens de unidad). A partir de ahí:
   texto del encabezado es «Designação»/«Descrição», el capítulo pasa a ser el
   nombre de la hoja.
 
+### Capítulo: de dónde sale (familia código)
+El capítulo no siempre es un título numérico interno. El motor reconoce:
+- **Nombre de hoja = disciplina** (`ARQUITECTURA`, `ESTRUTURA`, `AVAC`, `ÁGUAS`,
+  `ELECTRICIDADE`, `ITED`, `SCIE`…): es el patrón más frecuente del corpus (una
+  pestaña por disciplina). La disciplina pasa a `capitulo` y los títulos internos
+  bajan un nivel; lo que quede por debajo de sección va a la `ruta`. Admite prefijo
+  de código en el nombre (`A - ARQUITETURA`, `2.DEMOLIÇÕES`, `MQT-AVAC`), que se
+  limpia. No actúa si la disciplina ya figura exactamente como capítulo.
+- **Columna-sección aparte**: el capítulo va en una columna propia (`SECÇÃO`
+  `1.`, `2.`…) a la izquierda del artículo, con el nombre del capítulo en la fila
+  donde el artículo va vacío (RUA DA BOMBARDA). Se combina sección+artículo.
+- **Esquema por letra** (`A`, `B`, `C`…, ≥3 distintas): los códigos numéricos que
+  reinician debajo cuelgan un nivel bajo la letra (Casa das Nunes, Lx Factory,
+  Varandas). Una letra aislada no es esquema (no se nivela).
+- **Rótulo de documento** en la columna de código (`MAPA DE QUANTIDADES`, `MQT`…)
+  NO es capítulo: se ignora para no meter un nivel falso (Rua do Alecrim).
+
 ### Herencia de unidad
 Patrón frecuente: una partida `1.1 …(m2)` declara la unidad, pero la cantidad
 está en sus filas hijas `1.1.1`, `1.1.2`… que no la repiten. Una fila **con
@@ -86,8 +103,22 @@ queda `capitulo` vacío PERO hay `ruta` (existen títulos por encima), se
 aviso "capítulo inferido" y la confianza se limita (≤0.9): se rellena, pero se
 avisa de que la jerarquía venía incompleta en origen.
 
-## Confianza
+## Revisión humana de jerarquía — la ruta no pierde nada
+Al reasignar niveles (designar la hoja como capítulo, mover un título de nivel…),
+la `ruta` se reconstruye con **todos** los niveles activos, incluidos los que
+quedan **por debajo de sección**: el esquema solo tiene 4 columnas
+(división/capítulo/subcapítulo/sección), pero un quinto nivel no se tira — va al
+migajero (`ruta`). Así, subir una disciplina a capítulo nunca borra el detalle
+fino que había debajo.
+
+## Confianza y validación
 La app agrega la confianza por hoja (ponderada por nº de partidas) en un
 indicador global. Es **autoevaluación de la herramienta**, no verdad validada:
 el siguiente paso para fiarse del número es **validación humana** contra
 estudios reales hechos a mano.
+
+**Oráculo de capítulo** (`test-regresion.js`): `ARQUITECTURA`/`ARQUITETURA` es,
+casi sin excepción, un capítulo. El test busca esa ancla como título en cada hoja
+y comprueba que cae en la columna `capitulo`; si un archivo que lo cumplía deja de
+cumplirlo, **falla** (red de seguridad barata contra regresiones de jerarquía).
+Es una señal *vinculante* derivada del dominio, no una autoevaluación.

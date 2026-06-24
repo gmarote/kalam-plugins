@@ -69,8 +69,10 @@ No hay CONFIG ni mapeo manual en el caso normal: el motor lo resuelve solo.
 
 ## Flujo de casos difíciles (interactivo) — el valor diferencial
 
-Cuando el informe marca una hoja, el objetivo es dejarla correcta **y**, si es un
-patrón nuevo, **enseñárselo al motor** (que quede resuelto para siempre). Rutina:
+Cuando el informe marca una hoja, el objetivo es **dejar perfecto ESE fichero**
+para este usuario, interactuando con él. **No se edita el motor** (eso es
+mantenimiento, ver más abajo): se resuelve el caso con `overrides` y revisión de
+jerarquía, que el motor ya soporta. Rutina:
 
 1. **Mira el aviso.** El más importante es **«jerarquía rota»** (capítulo vacío
    con subcapítulo/sección llenos): casi siempre la cabecera de capítulo no se
@@ -81,22 +83,37 @@ patrón nuevo, **enseñárselo al motor** (que quede resuelto para siempre). Rut
    ```
    Muestra hojas, columnas detectadas y las primeras filas crudas. Fíjate en las
    filas-título (código sin cantidad) y en cómo se escribe el código.
-3. **Compáralo con las causas ya conocidas** (`references/capas-y-correccion.md`):
-   cabecera escondida (`ARQ 1.`, `A 1.1.1.1`, `1.`), nivel constante (`A.x`), cero
-   final (`1.0`), código en dos columnas (Bloco). Si es una de ellas y aun así
-   falla, comprueba por qué la receta no disparó.
-4. **Si es un patrón NUEVO**, añádelo como **receta de capa 3** en
-   `../../app/normalizar.core.js`:
-   - una hipótesis en el banco del reintento (gatillo: «jerarquía rota»), que se
-     queda **solo si la confianza sube** (nunca empeora), o
-   - una normalización de código si es general y segura.
-5. **Re-incrusta el motor en el HTML** (`hopper_multicapa.html`) y **mide sin
-   regresión**: `node app/banco-pruebas.js <corpus>` (recuento de mediciones +
-   auto-éxito) antes/después. La copia embebida debe quedar idéntica al standalone.
-6. **Confirma con el usuario** el resultado de esa hoja y entrega.
+3. **Pregunta al usuario lo que solo él sabe** (es el autor/lector del MQT).
+   Enséñale lo que el motor detectó y plantea las dudas concretas, p. ej.:
+   - «Esta hoja se llama AVAC, ¿es el capítulo de todo lo que contiene?»
+   - «El código `A` ¿es capítulo (con 1, 2… debajo) o es un edificio/bloque (división)?»
+   - «`0.1 Estaleiro` ¿es subcapítulo o ya una partida?»
+   Compáralo con las causas conocidas (`references/capas-y-correccion.md`) para
+   acertar con las preguntas.
+4. **Compón el archivo correcto con sus respuestas**, sin tocar el motor:
+   - **`overrides`** por hoja (4º argumento de `core.normalizar`): `familia`,
+     `headerRow`, `cols` (mapeo de columnas) cuando la detección automática falló.
+   - **Revisión de jerarquía** (`construirTitulos` + `aplicarTitulos`): designar
+     hoja → Capítulo, mover niveles, marcar «no es título». La `ruta` conserva lo
+     que quede por debajo de sección.
+5. **Confirma el resultado con el usuario y entrega** los dos Excel (`SendUserFile`).
+6. **Si has visto un patrón que se repetiría** en otros ficheros, **déjalo como
+   nota** para el responsable del motor (no lo apliques aquí). Ej.: «AVAC venía
+   como nombre de hoja y el motor no lo subió a capítulo — candidato a regla».
 
-Cada arreglo así **no es un parche de un archivo: es una regla permanente** que
-sube el auto-éxito para todos los ficheros futuros.
+La salida del plugin es **un caso particular**: resuelve este fichero, **no
+modifica el motor**.
+
+## Mantenimiento del motor (fuera del runtime del plugin)
+
+Mejorar el motor es una actividad **aparte**, en sesión de desarrollo con quien
+mantiene el código (no la hace el plugin en ejecución, ni en casa del cliente).
+Cuando un patrón es **nuevo y recurrente**, se convierte en **regla permanente**:
+añadir la regla/receta en `../../app/normalizar.core.js`, **re-incrustar** el motor
+en `hopper_multicapa.html`, y **medir sin regresión** con
+`node app/test-regresion.js <corpus>` (invariantes, snapshot por archivo, oráculo
+ARQUITECTURA, `embebido == standalone`) antes/después. Así cada caso difícil sube
+el auto-éxito de la app base para todos los ficheros futuros.
 
 ### Cuándo preguntar al usuario
 Si el patrón es **ambiguo** (dos lecturas válidas y solo el autor del MQT sabe

@@ -24,6 +24,28 @@ function cargarXLSX(){
 }
 var XLSX=cargarXLSX(), core=require(path.join(__dirname,"normalizar.core.js"));
 
+// ---- ORÁCULO de capítulo: ARQUITECTURA/ARQUITETURA es, casi sin excepción, un capítulo
+// (disciplina de primer nivel). Si aparece como TÍTULO en una hoja pero su texto NO acaba
+// en la columna `capitulo` de ninguna partida de esa hoja, el motor erró el nivel del
+// capítulo. Señal vinculante y barata para cazar regresiones de jerarquía. Devuelve
+// {tiene, ok}: tiene=hay ancla-título; ok=cae en capítulo (null si no hay ancla). ----
+function anclaArqOK(wb, det){
+  var re=/^\s*[A-Za-z]?[\.\)]?\s*arquit\w*ura\b/i, word=/arquit\w*ura/i, hojas=Object.keys(det.info);
+  for(var n=0;n<hojas.length;n++){
+    var h=hojas[n], inf=det.info[h]; if(inf.excluida||!inf.cols) continue;
+    var ws=wb.Sheets[h]; if(!ws||!ws["!ref"]) continue;
+    var rng=XLSX.utils.decode_range(ws["!ref"]);
+    var g=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:true,range:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rng.e.r,c:rng.e.c}})});
+    var cd=inf.cols.desc, cq=inf.cols.qty;
+    for(var i=0;i<g.length;i++){ var row=g[i]||[]; var d=row[cd]==null?"":String(row[cd]).trim();
+      if(re.test(d) && d.length<46 && core.toNum(row[cq])===null){
+        return {tiene:true, ok:det.mediciones.some(function(m){return m.hoja===h && word.test(m.capitulo||"");})};
+      }
+    }
+  }
+  return {tiene:false, ok:null};
+}
+
 var dir=process.argv[2], save=process.argv.indexOf("--save")>=0;
 if(!dir){ console.error("Uso: node test-regresion.js <carpeta_corpus> [--save]"); process.exit(1); }
 var BASE=path.join(__dirname,".regresion-baseline.json");
@@ -36,10 +58,11 @@ var fallos=[], snapshot={}, items=[];
 var errLectura=0, silentLoss=[], capVacioConRuta=0, totMed=0;
 
 files.forEach(function(f){
-  var det;
-  try { det=core.normalizar(XLSX.read(fs.readFileSync(path.join(dir,f))), f, XLSX, {}); }
+  var det, wb;
+  try { wb=XLSX.read(fs.readFileSync(path.join(dir,f))); det=core.normalizar(wb, f, XLSX, {}); }
   catch(e){ errLectura++; fallos.push("lectura: "+f+" -> "+e.message); return; }
   items.push({archivo:f, det:det});
+  var arq=anclaArqOK(wb, det);
   var usadas=0, limpias=0, med=det.mediciones.length;
   Object.keys(det.info).forEach(function(h){
     var inf=det.info[h];
@@ -50,8 +73,13 @@ files.forEach(function(f){
     if(!inf.excluida){ usadas++; if(!(inf.avisos&&inf.avisos.length)) limpias++; }
   });
   totMed+=med;
-  snapshot[hash(f)]={med:med, hojasUsadas:usadas, hojasLimpias:limpias, esMQT:det.esMQT!==false};
+  snapshot[hash(f)]={med:med, hojasUsadas:usadas, hojasLimpias:limpias, esMQT:det.esMQT!==false,
+                     arqTiene:arq.tiene, arqOK:arq.ok, nombre:f};
 });
+
+// ---- ORÁCULO ARQUITECTURA: resumen + lista de rotos (capítulo no detectado pese a tener ancla) ----
+var arqCon=0, arqOk=0, arqRoto=[];
+Object.keys(snapshot).forEach(function(k){ var s=snapshot[k]; if(!s.arqTiene) return; arqCon++; if(s.arqOK) arqOk++; else arqRoto.push(s.nombre); });
 
 // INVARIANTE: capítulo nunca vacío teniendo ruta (regla universal del proyecto).
 var acc=core.acumular(items);
@@ -73,6 +101,7 @@ if(!emb) fallos.push("el motor embebido en hopper_multicapa.html NO coincide con
 
 console.log("\n════════ TEST DE REGRESIÓN ════════");
 console.log("Ficheros: "+files.length+" · mediciones: "+totMed+" · core embebido == standalone: "+(emb?"sí":"NO"));
+console.log("Ancla ARQUITECTURA en capítulo: "+arqOk+"/"+arqCon+" OK"+(arqRoto.length?" · roto: "+arqRoto.join(", "):""));
 
 // ---- snapshot ----
 if(save){
@@ -85,6 +114,7 @@ if(save){
     if(snapshot[k].med < bf[k].med) bajadas.push("  ↓ "+bf[k].med+" -> "+snapshot[k].med+" mediciones (hash "+k+")");
     else if(snapshot[k].med > bf[k].med) subidas++;
     if(bf[k].esMQT && !snapshot[k].esMQT) bajadas.push("  ⚠ un archivo dejó de detectarse como MQT (hash "+k+")");
+    if(bf[k].arqOK===true && snapshot[k].arqOK===false) fallos.push("ARQUITECTURA dejó de caer en capítulo: "+(snapshot[k].nombre||("hash "+k))+" (regresión de jerarquía)");
   });
   Object.keys(bf).forEach(function(k){ if(!snapshot[k]) faltan++; });
   console.log("Snapshot: "+bajadas.length+" bajada(s) · "+subidas+" subida(s) · "+nuevos+" nuevo(s) · "+faltan+" ausente(s)");

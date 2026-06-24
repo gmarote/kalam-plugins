@@ -208,6 +208,24 @@
       }
       if(pre>=0 && preN>=3 && deep>=2){ cols.codePrefix=pre; used[pre]=1; }
     }
+    // columna-SECCIÓN: prefijo de capítulo en columna aparte (numérica «1.», «2.»…) a la
+    // izquierda del código, con el NOMBRE del capítulo en la fila donde el código va vacío.
+    // Señal específica: ≥3 valores cortos distintos y ≥3 filas «cabecera de capítulo»
+    // (esa columna llena, código vacío, descripción en MAYÚSCULAS).
+    if(cols.codePrefix==null && cols.code!=null && cols.desc!=null){
+      var sp=-1, spN=0;
+      for(var pc2=0; pc2<cols.code; pc2++){
+        if(used[pc2]) continue;
+        var heads=0, vals={};
+        for(var rr2=start; rr2<grid.length && rr2<start+800; rr2++){
+          var rw2=grid[rr2]||[];
+          var pv=txt(cell(rw2,pc2)).replace(/\s+/g,""), cv=txt(cell(rw2,cols.code)), dv=txt(cell(rw2,cols.desc));
+          if(pv && /^\d{1,3}\.?$/.test(pv)){ vals[pv]=1; if(!cv && dv && isCaps(dv)) heads++; }
+        }
+        if(heads>spN && Object.keys(vals).length>=3){ spN=heads; sp=pc2; }
+      }
+      if(sp>=0 && spN>=3){ cols.codePrefix=sp; used[sp]=1; }
+    }
 
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
@@ -245,6 +263,14 @@
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
     var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
+    // ¿esquema de capítulos por LETRA real (A, B, C…)? Solo si hay ≥3 letras sueltas
+    // distintas como título: una letra aislada ("E ESTALEIRO") es un capítulo más, no un
+    // esquema. Con esquema real, los códigos numéricos reinician bajo cada letra y cuelgan
+    // un nivel por debajo (si no, "1 ESTALEIRO" colisiona con la letra "A" y la machaca).
+    var _ltr={}; for(var _i=start;_i<grid.length;_i++){ var _rw=grid[_i]; if(!_rw) continue;
+      var _c=txt(cell(_rw,cols.code)).replace(/\s+/g,""), _d=txt(cell(_rw,cols.desc)), _q=toNum(cell(_rw,cols.qty));
+      if(/^[A-Z]\.?$/.test(_c) && _d && _q===null) _ltr[_c.replace(".","")]=1; }
+    var esquemaLetras = Object.keys(_ltr).length>=3;
     var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
     function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
@@ -268,7 +294,7 @@
       // capítulo-macro como TEXTO en la columna de código (heading en MAYÚSCULAS, sin código
       // numérico, descripción vacía; p.ej. ARQUITECTURA/ESTRUTURAS en la columna ARTIGO). Los
       // códigos numéricos que cuelgan (1, 2…) bajan un nivel: pasan a subcapítulo.
-      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code)){
+      if(isCaps(code) && !isStructCode(code) && !isLetterChapter(code) && !qty && !unit && !desc && !/total/i.test(code) && !esHojaGenerica(code)){
         if(!(cur && cur.nivel===1 && cur.code===code)){
           stats.titulo++; textCh=true; titles={1:code}; cur={code:code,desc:code,nivel:1};
           pushEst({codigo:"",nat:natDe(titles,1),ud:"",partida:code,cantidad:""});
@@ -302,7 +328,7 @@
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && /^[A-Za-z]+\d/.test(_seg[0])) ? 1 : 0) + (textCh ? 1 : 0);   // bajo un capítulo-macro de texto, los códigos numéricos cuelgan un nivel más abajo
+      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto, también
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
@@ -337,6 +363,13 @@
   // los títulos internos, no el nombre de la hoja. Un nombre de disciplina real
   // ("ARQUITECTURA", "C - ÁGUAS", "ELEVADOR") NO entra aquí: sigue siendo capítulo.
   function esHojaGenerica(s){ return /^\s*(mqt|mtq|mapa\s*de\s*(quantidades|trabalhos)|medi[cç][õo]es|or[cç]amento|folha|sheet|hoja|planilha|resumo)\b/i.test(String(s||"")); }
+  // ¿el nombre de hoja es una DISCIPLINA (capítulo)? ARQUITECTURA, ESTRUTURA, AVAC, ÁGUAS…
+  // Admite prefijo de código ("A - ", "3.", "MQT-"). No incluye divisiones (BLOCO/edifício).
+  function esDisciplina(s){ return /^\s*(?:[A-Za-z0-9]{0,3}[.\-\s)]+\s*)?(arquitect?ura|arquitetura|estruturas?|estabilidade|funda[cç][õo]es|bet[ãa]o\b|avac|climatiza\w*|ventila\w*|electricidade|eletricidade|el[ée]ctrica|energia|[áa]guas|abastecimento|rede hidr[áa]ulica|esgotos|drenagem|scie|seguran[cç]a|ited\d?|telecomunica\w*|gtc|gest[ãa]o t[ée]cnica|g[áa]s|rede de g[áa]s|elevadore?s?|ascensore?s?|paisagismo|demoli[cç][õo]es)\s*\d*\s*$/i.test(String(s||"")); }
+  // limpia el prefijo de código del nombre de hoja: "A - ARQUITETURA"->"ARQUITETURA",
+  // "2.DEMOLIÇÕES"->"DEMOLIÇÕES", "MQT-AVAC"->"AVAC". Exige separador real (. - )) para no
+  // partir nombres con espacios ("REDE DE GÁS" se mantiene).
+  function limpiaPrefijoHoja(s){ var t=String(s||"").trim(); var r=t.replace(/^[A-Za-z0-9]{1,4}\s*[.\-)]\s*/, ""); return r.trim()||t; }
   // numeral romano como código de título (I., II., III., IV.…): en hoja genérica marca
   // el nivel CAPÍTULO; los títulos con número arábigo (0., 1.…) que cuelgan son subcapítulos.
   function esRomano(s){ s=String(s||"").replace(/\s+/g,"").replace(/\.+$/,"").toUpperCase();
@@ -657,6 +690,32 @@
         info[h].resumo=true;
       });
     }
+
+    // 1c) HOJA-DISCIPLINA: el nombre de hoja es una disciplina (ARQUITECTURA, AVAC, ÁGUAS…) ->
+    //     ES el capítulo. Los títulos internos bajan un nivel (cap->sub->secc) y lo más profundo
+    //     se conserva en la ruta. No se toca si la disciplina YA figura como capítulo (evita
+    //     duplicar) ni si un resumo/índice ya fijó la jerarquía. Solo familia código (en formato
+    //     el nombre de hoja ya hace de capítulo).
+    nombres.forEach(function(h){
+      var inf=info[h];
+      if(inf.excluida || inf.resumo || inf.familia!=="codigo" || !esDisciplina(h)) return;
+      var med=data[h].medRows; if(!med.length) return;
+      var disc=limpiaPrefijoHoja(h), discN=disc.toUpperCase().replace(/\s+/g,"");
+      // ya OK si la disciplina ES exactamente un capítulo (no por contención: «REDE DE
+      // DISTRIBUIÇÃO DE ENERGIA» contiene «ENERGIA» pero no es el capítulo ENERGIA)
+      var yaEs=false; med.forEach(function(r){ if(limpiaPrefijoHoja(r.capitulo).toUpperCase().replace(/\s+/g,"")===discN) yaEs=true; });
+      if(yaEs) return;   // la disciplina ya está como capítulo: no re-nivelar
+      var base=titulosDeMed(med).filter(function(t){ return t.nivel<=3; });
+      var niveles=[]; base.forEach(function(t){ if(txt(t.texto) && niveles.indexOf(t.nivel)<0) niveles.push(t.nivel); });
+      if(!niveles.length) return;
+      var minN=Math.min.apply(null,niveles), shift=2-minN, remap={};   // sube la hoja a capítulo (nivel 1): los internos +1
+      niveles.forEach(function(N){ remap[N]=Math.max(0,N+shift); });
+      var fin=construirTitulos(base, remap, disc, 1);
+      aplicarTitulos(med, fin, 3);
+      data[h].est=estDesdeMed(med);
+      info[h].titulos=titulosDeMed(med);
+      info[h].hojaCapitulo=disc;
+    });
 
     // 2) detectar duplicados: una hoja sobra si está contenida (>=80%) en otra mayor
     nombres.forEach(function(A){

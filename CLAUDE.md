@@ -73,16 +73,26 @@ confundible con un MQT real (verificado: roundtrip de Palmira, 524 partidas
 idénticas; corpus intacto).
 
 ### Estado actual (corpus de 40 MQT reales)
-- Confianza media **~98%** (autoevaluación). **30.044 mediciones**, 0 errores de
-  lectura. **Invariante**: 0 partidas con capítulo vacío teniendo ruta. El test de
-  regresión (`test-regresion.js /tmp/lote`) protege este recuento y la sincronía
-  `embebido == standalone`.
-- Validación **humana** hecha solo a fondo en 2 archivos (1 verde correcto, 1
-  rojo bien marcado). El 98% es **autoevaluación**, no verdad medida.
+- **30.044 mediciones**, 0 errores de lectura. **Invariante**: 0 partidas con
+  capítulo vacío teniendo ruta. El test de regresión (`test-regresion.js
+  /tmp/lote`) protege el recuento, la sincronía `embebido == standalone` y el
+  **oráculo ARQUITECTURA** (la disciplina debe caer en `capitulo`; 15/18 hojas con
+  ancla-título OK).
+- **Detección de capítulo reforzada** (sesión stoic-mendel): nombre de hoja =
+  disciplina → capítulo (33 hojas: Museu, CASA, Bairro…); columna-`SECÇÃO`
+  numérica como capítulo (BOMBARDA); esquema por letra A/B/C con números
+  reiniciando (Nunes, Lx Factory, Varandas); rótulo de documento ya no se cuela
+  como capítulo (Alecrim); la `ruta` conserva niveles por debajo de sección.
+- Validación **humana**: en curso vía Excel de revisión (1 fila por archivo). El
+  recuento es autoevaluación, no verdad medida a fondo.
 
 ### Pendiente
-- **Validación humana** sobre un lote real (lo que convierte el 98% estimado en
-  medido y sube la confianza del precio). Es el siguiente paso de más valor.
+- **Oráculo ARQUITECTURA: 3 archivos rotos** por atacar (ancla presente pero no
+  cae en capítulo): **ROSSIO 85 a 89** (`ARQUITECTURA` con código `1.`),
+  **Calçada Memória** (`ARQUITETURA` como título de texto), **Palácio Mendia**
+  (`ARQ`, prefijo-palabra). Mismo método: diagnóstico + regla medida.
+- **Validación humana** sobre un lote real (lo que convierte el recuento estimado
+  en medido y sube la confianza del precio). Es el siguiente paso de más valor.
 - **Recuperar el nivel «sección» (regla de jerarquía esperada).** Lo normal es
   capítulo › subcapítulo › sección › partida. El motor debe **poblar todos los
   niveles que el origen aporte** para cada partida, buscándolos en códigos y
@@ -101,7 +111,7 @@ la sesión). Son datos de cliente; por eso no se versionan. Para reejecutar el
 banco de pruebas / la regresión hay que volver a subirlos.
 
 ## Convenciones
-- Rama de trabajo: `claude/magical-euler-dxi9y7`.
+- Rama de trabajo: `claude/stoic-mendel-vtjp1h`.
 - Commits descriptivos; medir en el corpus antes/después de tocar el motor
   (recuento de mediciones + confianza) para cazar regresiones.
 - No añadir librerías/dependencias. Mantenerlo simple ("no complicar").
