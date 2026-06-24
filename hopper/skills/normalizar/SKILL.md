@@ -39,6 +39,12 @@ nuevo** cuando aparece.
   corrección. **Léelo antes de tocar un caso difícil.**
 - **`assets/normalizar.js`** — el ejecutor (usa el motor compartido). *Esta es la
   ruta principal.*
+- **`assets/mapa-jerarquia.js`** — extrae el **mapa de jerarquía** (código→título→
+  nivel) de una hoja **Resumo/Índice** y, con `--out`, lo aplica a las partidas.
+  Para casos donde la hoja-resumen trae la jerarquía completa que falta en las
+  hojas de medición. No toca el motor.
+- **`assets/inspeccionar.js`** — vuelca hojas, columnas detectadas y filas crudas
+  de una hoja, para diagnosticar casos difíciles.
 - **`assets/extraer.py`** — extractor antiguo parametrizado por CONFIG. **Legacy /
   oráculo de validación**; no es la ruta principal.
 
@@ -91,6 +97,10 @@ jerarquía, que el motor ya soporta. Rutina:
    Compáralo con las causas conocidas (`references/capas-y-correccion.md`) para
    acertar con las preguntas.
 4. **Compón el archivo correcto con sus respuestas**, sin tocar el motor:
+   - **¿Hay hoja Resumo/Índice?** Suele traer la jerarquía completa (código→título).
+     Extráela y aplícala: `node assets/mapa-jerarquia.js <archivo.xlsx> --out <carpeta>`.
+     Es la vía más fiable cuando existe (la hoja descartada como fuente de
+     mediciones sigue siendo fuente de jerarquía).
    - **`overrides`** por hoja (4º argumento de `core.normalizar`): `familia`,
      `headerRow`, `cols` (mapeo de columnas) cuando la detección automática falló.
    - **Revisión de jerarquía** (`construirTitulos` + `aplicarTitulos`): designar
