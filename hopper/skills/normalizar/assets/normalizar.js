@@ -95,12 +95,14 @@ function hojaFormulada(cf){
   // bandas por tipo de fila: azules degradados (capítulo más intenso) y gris para totales
   var BAND={ "División":{bg:"1F3864",fg:"FFFFFF"}, "Capitulo":{bg:"2F5496",fg:"FFFFFF"},
              "Subcapitulo":{bg:"8EAADB",fg:"1A1A1A"}, "Sección":{bg:"D9E1F2",fg:"1A1A1A"} };
-  cf.labels.forEach(function(lab,c){ ws[XLSX.utils.encode_cell({r:sr-2,c:c})]={t:"s",v:lab,s:{font:{bold:true,sz:9},fill:{patternType:"solid",fgColor:{rgb:"D9D9D9"}},alignment:{wrapText:true,vertical:"center"}}}; });
+  var RB={3:1,6:1,8:1,11:1,14:1,17:1,24:1,28:1,32:1,37:1,42:1,44:1,47:1};   // borde derecho: separa bloques (D,G,I,L,O,R,Y,AC,AG,AL,AQ,AS,AV)
+  var rb={style:"thin",color:{rgb:"808080"}};
+  cf.labels.forEach(function(lab,c){ var s={font:{bold:true,sz:9},fill:{patternType:"solid",fgColor:{rgb:"D9D9D9"}},alignment:{wrapText:true,vertical:"center"}}; if(RB[c]) s.border={right:rb}; ws[XLSX.utils.encode_cell({r:sr-2,c:c})]={t:"s",v:lab,s:s}; });
   cf.rows.forEach(function(row,ri){
     var er=sr-1+ri, nat=String(row[1]||""), esTot=/^TOTAL/.test(String(row[3]||""));
     var band = BAND[nat] ? BAND[nat] : (esTot ? {bg:"D9D9D9",fg:"1A1A1A"} : null);
     for(var c=0;c<nC;c++){ var cell=row[c];
-      if(cell==null && !band) continue;                          // partida: solo celdas con contenido; banda: toda la fila
+      if(cell==null && !band && !RB[c]) continue;                // partida: celdas con contenido + columnas con borde; banda: toda la fila
       var ad=XLSX.utils.encode_cell({r:er,c:c}), o;
       if(cell==null) o={t:"s",v:""};
       else if(typeof cell==="object" && cell.f!=null) o={t:"n",f:cell.f,v:0};   // SheetJS exige valor cacheado; Excel recalcula al abrir/pegar
@@ -108,6 +110,7 @@ function hojaFormulada(cf){
       else o={t:"s",v:String(cell)};
       var s={font:{sz:9}}; if(NUM[c]) s.numFmt="#,##0.00";
       if(band){ s.fill={patternType:"solid",fgColor:{rgb:band.bg}}; s.font={sz:9,bold:true,color:{rgb:band.fg}}; }
+      if(RB[c]) s.border={right:rb};
       o.s=s; ws[ad]=o;
     }
   });
