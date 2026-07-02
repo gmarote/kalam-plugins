@@ -1231,8 +1231,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       r[14]={f:"E"+R+"*N"+R}; r[17]={f:"E"+R+"*Q"+R};
       r[20]={f:"E"+R+"*T"+R+"*(1-W"+R+")"}; r[23]={f:"E"+R+"*V"+R+"*(1-W"+R+")"}; r[24]={f:"U"+R+"+X"+R};
       r[26]={f:"IF(Z"+R+"=0,0,E"+R+"/Z"+R+")"}; r[27]={f:"IF(E"+R+"=0,0,AC"+R+"/E"+R+")"}; r[28]={f:"AA"+R+"*$AC$4"};
-      r[31]={f:"AE"+R+"*E"+R}; r[37]={f:"(AH"+R+"+AI"+R+"+AJ"+R+"+AK"+R+")*E"+R};
-      r[38]={f:"AC"+R+"+AF"+R+"+AG"+R+"+AL"+R}; r[39]={f:"O"+R+"+R"+R+"+Y"+R+"+AM"+R};
+      r[31]={f:"AE"+R+"*E"+R}; r[37]={f:"SUM(AH"+R+",AI"+R+",AJ"+R+",AK"+R+")*E"+R};
+      r[38]={f:"SUM(AC"+R+",AF"+R+",AG"+R+",AL"+R+")"}; r[39]={f:"O"+R+"+R"+R+"+Y"+R+"+AM"+R};
       r[40]={f:"AN"+R+"*$AO$3"}; r[41]={f:"AN"+R+"+AO"+R}; r[42]={f:"IF(E"+R+"=0,0,AP"+R+"/E"+R+")"};
       r[43]=0;
       r[44]={f:"MROUND(IF(AQ"+R+"=0,0,(Y"+R+"*AT"+R+"+AM"+R+"*AU"+R+"+AO"+R+"*AU"+R+"+R"+R+"*AU"+R+"+O"+R+"*AU"+R+")/E"+R+"),IF(AR"+R+"=0,$AR$6,AR"+R+"))"};
