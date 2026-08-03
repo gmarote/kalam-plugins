@@ -101,7 +101,18 @@ jerarquía, que el motor ya soporta. Rutina:
      Extráela y aplícala: `node assets/mapa-jerarquia.js <archivo.xlsx> --out <carpeta>`.
      Es la vía más fiable cuando existe (la hoja descartada como fuente de
      mediciones sigue siendo fuente de jerarquía).
-   - **`overrides`** por hoja (4º argumento de `core.normalizar`): `familia`,
+   - **`overrides`** por hoja, desde la CLI:
+     ```bash
+     node assets/normalizar.js <archivo.xlsx> --out <carpeta> --overrides ov.json
+     ```
+     ```json
+     { "AVAC": { "familia":"codigo", "headerRow":6,
+                 "cols":{"code":0,"desc":2,"unit":4,"qty":5} } }
+     ```
+     `headerRow` y `cols` van en base 0; solo hace falta lo que la detección
+     falló. `inspeccionar.js` imprime esos tres valores tal como los detectó, así
+     que se copian y se corrige lo que esté mal.
+     Equivale al 4º argumento de `core.normalizar`: `familia`,
      `headerRow`, `cols` (mapeo de columnas) cuando la detección automática falló.
    - **Revisión de jerarquía** (`construirTitulos` + `aplicarTitulos`): designar
      hoja → Capítulo, mover niveles, marcar «no es título». La `ruta` conserva lo
