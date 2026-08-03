@@ -28,7 +28,7 @@
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
   function isStructCode(s){ var pre=(String(s).match(/^[A-Za-z]+/)||[""])[0];   // prefijo alfabético en MAYÚSCULAS: los códigos son A/ARQ/C1; palabras-etiqueta (Nota, Item, Obs) van en minúsculas y NO son código
     return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0 && (!pre || pre===pre.toUpperCase()); }
-  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
+  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s) && !/^(NOTA|OBS|NB|PS)\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok" y palabras-nota (NOTA en la col de código con la advertencia al lado NO es un capítulo; caso Casa das Nunes)
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
@@ -226,6 +226,43 @@
       }
       if(sp>=0 && spN>=3){ cols.codePrefix=sp; used[sp]=1; }
     }
+    // código partido NUMÉRICO en dos columnas adyacentes: col A = código punteado
+    // TERMINADO EN PUNTO («1.1.1.1.») y col B = último segmento entero corto («1»..«99»).
+    // Firma estricta (la col A termina en punto SIEMPRE — un código normal con algún «1.»
+    // suelto no dispara — y B la acompaña en la gran mayoría de filas): se ANULA la
+    // elección previa y el texto pasa a la primera columna de texto a la derecha de B.
+    // Caso Ferreria Borges C2–C4 («DN 40» se leía como código y la partida quedaba vacía).
+    {
+      var mejorA=-1, mejorN=0;
+      for(var pa=0; pa<6 && pa+1<N; pa++){
+        if(pa+1===cols.qty || pa+1===cols.price || pa+1===cols.unit) continue;
+        var nPar=0, aDot=0, aSinDot=0;
+        for(var rr3=start; rr3<grid.length && rr3<start+500; rr3++){
+          var rw3=grid[rr3]||[];
+          var av=txt(cell(rw3,pa)).replace(/\s+/g,""), bv=txt(cell(rw3,pa+1)).replace(/\s+/g,"");
+          if(/^\d+(\.\d+)*\.$/.test(av)){ aDot++; if(/^\d{1,2}$/.test(bv)) nPar++; }
+          else if(/^\d+(\.\d+)+$/.test(av)) aSinDot++;   // código punteado SIN punto final: columna de código normal, no prefijo
+        }
+        if(aDot>=5 && nPar>=aDot*0.8 && aSinDot<=aDot*0.15 && nPar>mejorN){ mejorN=nPar; mejorA=pa; }
+      }
+      if(mejorA>=0){
+        var B=mejorA+1;
+        var dnew=-1;
+        for(var dc=B+1; dc<Math.min(N,B+4); dc++){
+          if(dc===cols.qty||dc===cols.price||dc===cols.unit) continue;
+          var nTxt=0, nTot=0;
+          for(var rr4=start; rr4<grid.length && rr4<start+500; rr4++){
+            var dv2=txt(cell(grid[rr4]||[],dc)); if(!dv2) continue; nTot++;
+            if(dv2.length>=3 && !/^[\d.,]+$/.test(dv2)) nTxt++;
+          }
+          if(nTot>=5 && nTxt/nTot>=0.7){ dnew=dc; break; }
+        }
+        if(dnew>=0){
+          cols.codePrefix=mejorA; cols.code=B; cols.desc=dnew;
+          used[mejorA]=1; used[B]=1; used[dnew]=1;
+        }
+      }
+    }
 
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
@@ -262,7 +299,7 @@
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false, capCh=false;
     // ¿esquema de capítulos por LETRA real (A, B, C…)? Solo si hay ≥3 letras sueltas
     // distintas como título: una letra aislada ("E ESTALEIRO") es un capítulo más, no un
     // esquema. Con esquema real, los códigos numéricos reinician bajo cada letra y cuelgan
@@ -271,21 +308,38 @@
       var _c=txt(cell(_rw,cols.code)).replace(/\s+/g,""), _d=txt(cell(_rw,cols.desc)), _q=toNum(cell(_rw,cols.qty));
       if(/^[A-Z]\.?$/.test(_c) && _d && _q===null) _ltr[_c.replace(".","")]=1; }
     var esquemaLetras = Object.keys(_ltr).length>=3;
-    var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
+    // esquema "CAP.n": capítulos codificados CAP.0 / CAP. 1 / CAP.2 en la columna de código
+    var _nCap=0; for(var _j=start;_j<grid.length;_j++){ var _rw2=grid[_j]; if(!_rw2) continue;
+      if(/^CAP\.?\s*\d+\.?$/i.test(txt(cell(_rw2,cols.code)))) _nCap++; }
+    var esquemaCAP = _nCap>=2;
+    var unidadCtx="", unidadCtxNivel=0, unidadCtxTit=null;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1"); el título que la declaró es una PARTIDA COMPUESTA
     function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
       if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
-      else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
+      else if(code){ var _cs=normCod(code); if(_cs!==code && isStructCode(_cs)) code=_cs; }   // normaliza espacios y punto final ("A 1.1.1.1", "ARQ 1.", "1.") -> sin esto, "1. REDE DE TERRAS" no se reconoce como subcapítulo y las partidas sin código de debajo pierden el capítulo
       if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
       if(stripCero){ var _z=code.replace(/(\.0+)+$/,""); if(_z && isStructCode(_z)) code=_z; }   // capa 3: convenio "1.0"=capítulo, "1.1.0"=subcapítulo -> quita el cero final
       if(unit==="0") unit="";
       if(desc==="0") desc="";   // celda rellena con 0 (hay hojas que ponen 0 en celdas vacías): no es descripción ni título
+      if(code==="0" && !desc) code="";   // fila rellena de ceros (fórmulas a 0): un "0" solo, sin descripción, no es un código
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
-      if(!code && !desc && qty===null){ stats.vacia++; continue; }
+      if(!code && !desc && (qty===null || (qty===0 && !unit))){ stats.vacia++; continue; }   // fila vacía o basura de ceros: no cuenta como medición
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
+      if(esquemaCAP && /^CAP\.?\s*\d+\.?$/i.test(code)){   // capítulo codificado "CAP.n": nivel 1; el resto de códigos cuelga un nivel (capCh)
+        if(desc && !(cur && cur.nivel===1 && cur.code===code)){
+          stats.titulo++; capCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+          pushEst({codigo:code.replace(/\s+/g,""),nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
       if(isLetterChapter(code) && !unit && !qty){   // capítulo-letra: «A»/«B» sin unidad ni cantidad (0 = título; hay MQT que ponen 0 en totales)
+        if(capCh){   // bajo esquema CAP.n, una letra ("CG") es un bloque DENTRO del capítulo: subcapítulo, no pisa el nivel 1
+          if(desc && !(cur && cur.nivel===2 && cur.code===code)){
+            stats.titulo++; titles[2]=desc; Object.keys(titles).forEach(function(k){ if(+k>2) delete titles[k]; }); cur={code:code,desc:desc,nivel:2};
+            pushEst({codigo:code,nat:natDe(titles,2),ud:"",partida:desc,cantidad:""});
+          }
+          continue; }
         if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
           stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
           pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
@@ -328,10 +382,26 @@
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto, también
+      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh||capCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto o esquema CAP.n, también
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
+        if(!unit && unidadCtxTit && nivel>unidadCtxNivel){
+          // LÍNEA DE DIMENSIONES de una partida compuesta: el título que declaró la unidad
+          // ES la partida; esta fila («P0», «restante paredes»…) es su DETALLE, no una
+          // partida propia. La jerarquía se toma POR ENCIMA del título (el título no es
+          // subcapítulo de sus propias líneas). Caso Rossio Place.
+          var Jd=jer(titles, unidadCtxNivel);
+          out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
+            division:Jd.division,capitulo:Jd.capitulo,subcapitulo:Jd.subcapitulo,seccion:Jd.seccion,
+            ruta:Jd.ruta,codigo:code,partida:unidadCtxTit.desc,detalle:desc,
+            unidad:unitEff,medicion:qty}));
+          if(curEst && curEst.nat==="Partida" && curEst.codigo===unidadCtxTit.code){
+            curEst.cantidad=(Number(curEst.cantidad)||0)+qty;   // suma al total de su partida en la hoja de costes
+            if(!curEst.ud) curEst.ud=unitEff;
+          } else pushEst({codigo:unidadCtxTit.code,nat:"Partida",ud:unitEff,partida:unidadCtxTit.desc,cantidad:qty});
+          continue;   // cur NO cambia: el nodo vigente sigue siendo la partida compuesta
+        }
         var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
@@ -340,13 +410,16 @@
         pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
       } else if(desc && cur && cur.code===code){   // mismo código que el nodo vigente y sin medición: nota/parcial de continuación (p.ej. «A2» repetido con una observación). NO es un subtítulo nuevo: no toca la jerarquía.
         stats.nota++; out.push(["__nota__",hoja,fila,desc]);
+      } else if(desc && /^nota\b/i.test(desc) && qty===null){   // prosa de nota con código propio: NO es un título, no toca la jerarquía
+        stats.nota++; out.push(["__nota__",hoja,fila,desc]);
       } else if(desc){
-        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
-        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
+        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; unidadCtxTit=null; }   // salimos del subárbol que declaró la unidad
+        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; unidadCtxTit={code:code,desc:desc}; }   // este título declara unidad para sus hijos: es una partida compuesta
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
+        if(unit) pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:""});   // partida compuesta: a costes como PARTIDA (sus líneas de detalle le sumarán la cantidad), no como subcapítulo
+        else pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
       } else { stats.vacia++;   // fila de continuación: mismo código sin texto (celda combinada). NO resetea la jerarquía ni emite título vacío.
       }
     }
@@ -387,9 +460,10 @@
       else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
       if(unit==="0") unit="";
       if(desc==="0") desc="";   // celda rellena con 0: no es descripción ni título
+      if(code==="0" && !desc) code="";   // fila rellena de ceros (fórmulas a 0): un "0" solo, sin descripción, no es un código
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
-      if(!code && !desc && qty===null){ stats.vacia++; continue; }
+      if(!code && !desc && (qty===null || (qty===0 && !unit))){ stats.vacia++; continue; }   // fila vacía o basura de ceros: no cuenta como medición
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
@@ -453,13 +527,19 @@
     else if((inf.headerRow<0 || inf.headerScore<3) && est>0 && np<est)
       a.push("Mapeo poco seguro (cabecera "+(inf.headerRow<0?"no localizada":"poco clara")+"); asumí "+cols+". Si las partidas no cuadran, ajusta las columnas.");
 
-    // 3) Unidades raras (proporcional: solo concluye si afecta a muchas filas)
-    var us={}, nU=0; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)){us[u]=1;nU++;} });
-    var ul=Object.keys(us);
-    if(ul.length){
-      if(nU>=np*0.5) a.push(nU+" de "+np+" partidas con unidad rara ("+ul.slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
-      else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
-    }
+    // 3) Unidades raras. Dos señales MUY distintas:
+    //    - MAYORÍA de la hoja con unidad sospechosa (larga o numérica) -> columna probablemente
+    //      equivocada: se avisa fuerte.
+    //    - En MINORÍA, solo avisa lo NUMÉRICO ("1", "2,5"): un número nunca es una unidad y
+    //      delata filas con la columna corrida. Las unidades largas en minoría ("m2 em planta",
+    //      "ml de rodapé") son unidades legítimas con apellido: NO se avisa (era casi siempre
+    //      un falso aviso).
+    var us={}, nU=0, usN={}, nN=0;
+    medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(!u) return;
+      if(unidadSospechosa(u)){ us[u]=1; nU++; }
+      if(/^[\d.,\s]+$/.test(u)){ usN[u]=1; nN++; } });
+    if(nU>=np*0.5 && nU>0) a.push(nU+" de "+np+" partidas con unidad rara ("+Object.keys(us).slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
+    else if(nN>0) a.push(nN+" fila"+(nN>1?"s":"")+" con un número como unidad ("+Object.keys(usN).slice(0,4).join(", ")+"): un número no es una unidad — en esas filas la columna va corrida o el dato está mal en origen.");
 
     // 4) Cantidad 0: solo es señal si son MAYORÍA (entonces la columna de cantidad puede
     //    estar mal detectada). Unas pocas a 0 son NORMALES (partidas aún sin medir): no se
@@ -487,6 +567,27 @@
     } else if(sinCap===n){
       a.push("Capítulo sin asignar en toda la hoja (probablemente el capítulo es la propia hoja).");
       pen=Math.max(pen,0.1);   // benigno: apenas penaliza
+    } else if(sinCap>=8 && sinCap/n>=0.08){
+      // A2) jerarquía a trozos: parte de la hoja CON capítulo y parte SIN él. Casi seguro hay
+      //     un bloque (especialidad que reinicia numeración, tabla anexa…) cuyo título no se
+      //     reconoció como capítulo. Distinto del caso benigno de arriba (todo vacío).
+      a.push(sinCap+" de "+n+" partidas sin capítulo mientras el resto de la hoja sí lo tiene: probablemente hay un bloque (especialidad, anexo) cuyo título no se reconoció como capítulo. Revísalo.");
+      pen=Math.max(pen, Math.min(0.5, 0.15+(sinCap/n)*0.5));
+    }
+    // A3) partidas sin descripción ni detalle: filas que no dicen qué se mide (ruido o
+    //     columna de descripción mal asignada). Unas pocas pueden ser legítimas; muchas, no.
+    var sinTxt=0; for(var t=0;t<n;t++) if(!txt(medRows[t].partida) && !txt(medRows[t].detalle)) sinTxt++;
+    if(sinTxt>=5 && sinTxt/n>=0.05){
+      a.push(sinTxt+" de "+n+" partidas sin descripción ni detalle: filas que no dicen qué se mide. Puede ser ruido del original o una columna mal asignada.");
+      pen=Math.max(pen, Math.min(0.4, 0.1+(sinTxt/n)*0.4));
+    }
+    // A4) columna de "unidad" con pinta de designación: si casi cada fila trae una unidad
+    //     DISTINTA (D1, D2, D3…), no son unidades (m2, ml, un se repiten siempre). Señal de
+    //     hoja auxiliar (mapa de vanos/valas) o columna mal detectada.
+    var uds={}, nUd=0; for(var u=0;u<n;u++){ var _u=txt(medRows[u].unidad); if(_u){ uds[_u]=1; nUd++; } }
+    if(nUd>=10 && Object.keys(uds).length/nUd>=0.5){
+      a.push("La columna de unidad trae un valor distinto en casi cada fila ("+Object.keys(uds).slice(0,4).join(", ")+"…): parecen designaciones, no unidades. Puede ser una hoja auxiliar o una columna mal detectada.");
+      pen=Math.max(pen,0.35);
     }
     // B) misma descripción de partida repetida con el texto real en «detalle»
     //    (síntoma de columna de descripción mal asignada o herencia errónea)
@@ -530,7 +631,8 @@
     if(!resName) return null;
     var grid=gridDe(wb.Sheets[resName], XLSX), ents=[], lastTop=null, byCode={};
     for(var r=0;r<grid.length;r++){
-      var code=txt(cell(grid[r],0)), title=txt(cell(grid[r],1));
+      var code=txt(cell(grid[r],0)), title="";
+      for(var tc=1;tc<=3 && !title;tc++){ var tv=txt(cell(grid[r],tc)); if(/[A-Za-zÀ-ÿ]{2,}/.test(tv)) title=tv; }   // el título puede venir en col 1, 2 o 3 (Hidden Away lo trae en la 2)
       if(!code || !title) continue;
       if(!/^[A-Za-z]?\d{0,2}$/.test(code)) continue;     // A, B, C1, 1, 13… (no "GRAF_B" ni texto)
       if(!/[A-Za-zÀ-ÿ]{2,}/.test(title)) continue;       // el título debe tener letras
@@ -541,7 +643,9 @@
     if(ents.length<3) return null;
     var pref={}, casan=0;
     nombres.forEach(function(n){
-      var e=byCode[n.trim().toUpperCase()]; if(!e) return;
+      var e=byCode[n.trim().toUpperCase()];
+      if(!e){ var npref=n.trim().split(/[.\-_ )]/)[0].toUpperCase(); if(npref && npref!==n.trim().toUpperCase()) e=byCode[npref]; }   // «4.AGUA» → «4»: el código del índice va de prefijo en el nombre de la pestaña
+      if(!e) return;
       pref[n] = e.top ? [e.title] : [(e.parent?e.parent.title:""), e.title].filter(Boolean);
       casan++;
     });
@@ -750,10 +854,12 @@
       //     interpretado: o casi todo es cantidad 0, o no hay unidades en absoluto
       //     (un resumen lista disciplinas con su importe, sin unidad).
       if(i.estMedidas===0 && i.nMed>0){
-        var ms=data[h].medRows, z=0, sinU=0;
-        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; if(!txt(ms[k].unidad)) sinU++; }
+        var ms=data[h].medRows, z=0, sinU=0, realU=0;
+        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; var _u=txt(ms[k].unidad); if(!_u) sinU++; else if(esUnidad(_u)) realU++; }
         if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
         else if(sinU/ms.length>=0.95){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (sin unidades; parece un resumen/lista de importes)"; }
+        else if(realU/ms.length<0.2 && ms.length<=40){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (las «unidades» no son unidades reales: parece un resumen, gráfico u hoja auxiliar)"; }
+        else if(realU/ms.length<0.2){ i.est0Sospecha=true; }   // hoja larga sin unidades reales: puede ser medición por dimensiones (no se descarta) pero NO merece confianza plena
       }
     });
 
@@ -768,6 +874,17 @@
       var aud=auditar(data[h].medRows);                 // capa 2: auto-auditoría
       i.avisos=avisosDe(i, data[h].medRows).concat(aud.avisos);
       i.confianza=aud.confianza;
+      if(i.est0Sospecha) i.confianza=Math.min(i.confianza, 0.7);   // sin unidades reales en toda la hoja: ámbar aunque la tabla sea coherente por dentro
+      // RECONCILIACIÓN como veredicto (no solo aviso): comparar lo extraído con las
+      // filas del ORIGEN con pinta de medición (número + unidad). Es agnóstica al
+      // formato: si el motor no entendió la hoja, este contador no cuadra y la
+      // confianza CAE aunque la tabla resultante parezca coherente por dentro.
+      var _np=data[h].medRows.length, _est=i.estMedidas||0;
+      if(_est>=5){
+        if(_np===0)              i.confianza=Math.min(i.confianza, 0.3);
+        else if(_np<_est*0.5)    i.confianza=Math.min(i.confianza, 0.5);
+        else if(_np<_est*0.7)    i.confianza=Math.min(i.confianza, 0.7);
+      }
       if(i.compactado){   // jerarquía incompleta en origen: capítulo inferido (compactado). Se marca, no se cae.
         i.avisos.push(i.compactado+" partida"+(i.compactado>1?"s":"")+" con capítulo inferido (faltaba el nivel superior en origen): el título más alto presente pasó a capítulo. Revísalo.");
         i.confianza=Math.min(i.confianza, 0.9);
@@ -968,7 +1085,8 @@
   var API={CANON:CANON,COSTHEAD:COSTHEAD,COSTHEAD_F:COSTHEAD_F,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
            parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
            aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,costesFormulados:costesFormulados,
-           clavesDe:clavesDe,contencion:contencion,acumular:acumular};
+           clavesDe:clavesDe,contencion:contencion,acumular:acumular,
+           auditar:auditar,esHojaGenerica:esHojaGenerica,limpiaPrefijoHoja:limpiaPrefijoHoja};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
 })(typeof window!=="undefined"?window:this);

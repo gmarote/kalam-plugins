@@ -46,47 +46,48 @@
 
   main{max-width:1280px;margin:0 auto;padding:26px 28px 60px}
 
-  /* D · hero con más presencia: zona más alta y halo sutil del acento */
-  .dropzone{border:1.5px dashed var(--line);border-radius:var(--radius);background:radial-gradient(130% 130% at 50% -10%,var(--accent-soft) 0%,var(--panel) 58%);box-shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.06);cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden;display:block;padding:42px 24px;text-align:center}
-  /* hero de producto (solo estado vacío) */
-  .pitch{max-width:780px;margin:26px auto 20px;text-align:center;animation:fade .5s ease both}
-  .pitch-h{font-size:31px;line-height:1.14;font-weight:800;letter-spacing:-.9px;color:var(--ink);margin:0 0 12px}
-  .pitch-em{background:linear-gradient(120deg,var(--accent),#F2A24A);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .pitch-sub{font-size:14.5px;line-height:1.55;color:var(--muted);max-width:600px;margin:0 auto 18px}
-  .pitch-chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}
-  .pchip{font-size:12.5px;font-weight:600;color:var(--slate);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
-  .pitch.hide{display:none}
-  .dropzone:hover{border-color:var(--accent)}
-  /* B · drag-over dramático: se eleva, brilla y el borde se anima (marching ants) */
-  .dropzone.over{border-color:transparent;background:var(--accent-soft);transform:translateY(-4px) scale(1.006);box-shadow:0 18px 50px rgba(232,89,12,.20)}
-  .dropzone.over::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
-    background:linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(90deg,var(--accent) 50%,transparent 0) repeat-x,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y,linear-gradient(0deg,var(--accent) 50%,transparent 0) repeat-y;
-    background-size:16px 2px,16px 2px,2px 16px,2px 16px;background-position:0 0,0 100%,0 0,100% 0;animation:ants .55s linear infinite}
-  @keyframes ants{to{background-position:16px 0,-16px 100%,0 -16px,100% 16px}}
+  /* --- Pantalla de carga (split): izquierda marca sobre fondo oscuro con glows
+     del acento; derecha el formulario de carga. Sobria, sin animaciones. --- */
+  #importScreen{min-height:100vh;display:flex;align-items:stretch}
+  .ip-wrap{display:flex;width:100%;min-height:100vh}
+  .ip-left{width:44%;background:#111318;display:flex;align-items:center;justify-content:center;padding:60px 56px;position:relative;overflow:hidden}
+  .ip-left::before{content:'';position:absolute;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,rgba(232,89,12,.20) 0%,transparent 68%);top:-140px;left:-140px}
+  .ip-left::after{content:'';position:absolute;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(232,89,12,.14) 0%,transparent 68%);bottom:-90px;right:-70px}
+  .ip-left-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:48px 48px}
+  .ip-left-inner{position:relative;z-index:1;max-width:400px}
+  .ip-brand{display:flex;align-items:center;gap:13px;margin-bottom:42px}
+  .ip-mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent) 0%,#F08C3C 100%);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 28px rgba(232,89,12,.45)}
+  .ip-brand-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .ip-brand-name{color:rgba(255,255,255,.88);font-size:15px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .ip-brand-sub{color:rgba(255,255,255,.5);font-size:12px;font-weight:600;letter-spacing:.04em}
+  .ip-headline{font-size:44px;font-weight:800;letter-spacing:-.9px;line-height:1.06;color:#fff;margin:0 0 22px}
+  .ip-headline em{color:var(--accent);font-style:normal}
+  .ip-tagline{font-size:15px;color:rgba(255,255,255,.48);line-height:1.75;margin:0 0 44px}
+  .ip-features{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:15px}
+  .ip-feat{display:flex;align-items:center;gap:12px;font-size:13.5px;color:rgba(255,255,255,.62)}
+  .ip-feat-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;opacity:.85}
+  .ip-right{flex:1;background:var(--panel);display:flex;align-items:center;justify-content:center;padding:60px 64px}
+  .ip-form{width:100%;max-width:400px}
+  .ip-form-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  .ip-form-title{font-size:27px;font-weight:700;letter-spacing:-.4px;margin:0 0 6px;color:var(--ink)}
+  .ip-form-sub{font-size:13.5px;color:var(--muted);margin:0 0 28px;line-height:1.55}
+  .ip-privacy{margin-top:18px;font-size:11.5px;color:var(--faint);text-align:center;line-height:1.5}
+  @media(max-width:860px){.ip-wrap{flex-direction:column}.ip-left{width:100%;padding:48px 30px 44px}.ip-headline{font-size:34px}.ip-right{padding:44px 28px 60px}}
+  @media(prefers-reduced-motion:reduce){.capfill{transition:none}}
+  /* dropzone: vive en el panel derecho del split; con datos cargados se muda
+     encima del contenido como barra compacta de "añadir más" */
+  .dropzone{border:1.5px dashed var(--line);border-radius:16px;cursor:pointer;transition:border-color .22s ease,background .22s ease;background:var(--soft);position:relative;overflow:hidden;display:block}
+  .dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--accent-soft)}
   .dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  /* A · maqueta antes→después: cuenta la transformación sin haber subido nada */
-  .dz-demo{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 auto 20px;max-width:400px;animation:float 4s ease-in-out infinite}
-  .dropzone.over .dz-demo{animation:none;transform:scale(1.05)}
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-  .dz-col{display:flex;flex-direction:column;align-items:center;gap:7px}
-  .dz-cap{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
-  .dzs{width:128px;border-radius:10px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;gap:5px}
-  .dzs-msgy{transform:rotate(-2deg);background:#FBFBFC}
-  .dzs-msgy .r{height:7px;border-radius:3px;background:#E1E4E9}
-  .dzs-msgy .r.merge{background:#CFD4DA;width:100%}
-  .dzs-clean .hd{height:9px;border-radius:3px;background:linear-gradient(90deg,var(--accent),#F2935A)}
-  .dzs-clean .row{height:7px;border-radius:3px;background:#EEF1F4}
-  .dzs-clean .row.alt{background:#F6F8FA}
-  .dz-arrow{font-size:22px;color:var(--accent);font-weight:800;flex:none;animation:nudge 1.6s ease-in-out infinite}
-  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
-  @media(prefers-reduced-motion:reduce){.dz-demo,.dz-arrow{animation:none}.capfill{transition:none}}
-  .dz-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:5px}
-  .dz-sub{font-size:13px;color:var(--muted)}
-  .dz-pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:600;color:var(--teal);background:#E7F4F5;border:1px solid #cfe9eb;padding:5px 12px;border-radius:20px}
+  .dz-inner{padding:38px 24px;text-align:center}
+  .dz-icon-box{width:56px;height:56px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.06);transition:border-color .22s ease}
+  .dropzone:hover .dz-icon-box{border-color:var(--accent)}
+  .dz-main{font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:4px}
+  .dz-sub{font-size:12px;color:var(--faint)}
   /* compacto: una vez hay algo cargado, la zona se colapsa a una barra de una fila */
   .dz-compact{display:none}
   .dropzone.compact{padding:13px 22px}
-  .dropzone.compact .dz-demo,.dropzone.compact .dz-title,.dropzone.compact .dz-sub,.dropzone.compact .dz-pill{display:none}
+  .dropzone.compact .dz-inner{display:none}
   .dropzone.compact .dz-compact{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:var(--accent)}
   .dz-compact-sub{font-weight:500;color:var(--muted);font-size:12.5px}
 
@@ -148,30 +149,24 @@
   .kpi.corr .n{color:var(--ok)} .kpi.corr{cursor:pointer} .kpi.corr:hover{border-color:#bbe2c6;box-shadow:0 4px 14px rgba(21,128,61,.16)}
   .kpi,.capwrap{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-  /* revisión de jerarquía */
-  .jer-hoja{margin:0 0 14px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
-  .jer-hoja>h4{margin:0;padding:8px 13px;background:var(--soft);font-size:12.5px;font-weight:700;color:var(--slate);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .jer-hsel{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
-  .jer-hsel select{font:inherit;font-size:11.5px;padding:2px 5px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
-  .jer-list{padding:6px 0}
-  .jer-row{display:flex;align-items:center;gap:10px;padding:3px 13px}
-  .jer-row:hover{background:var(--accent-soft)}
-  .jer-txt{flex:1;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .jer-row[data-niv="0"] .jer-txt{font-weight:800}
-  .jer-row[data-niv="1"] .jer-txt{font-weight:700}
-  .jer-row[data-niv="1"]{padding-left:30px} .jer-row[data-niv="2"]{padding-left:52px}
-  .jer-row[data-niv="2"] .jer-txt{color:var(--muted)}
-  .jer-row.changed{background:rgba(232,137,12,.10)}
-  .jer-hoja.changed{border-color:#E8890C;box-shadow:0 0 0 1px rgba(232,137,12,.25)}
-  .jer-sheet{border-bottom:1px dashed var(--line);padding-top:6px;padding-bottom:6px}
-  .jer-sheet .jer-txt{font-weight:800}
-  .jer-mini{font-weight:500;font-size:11px;color:var(--faint)}
-  .jer-pers{margin-left:auto;font-weight:500;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap}
-  .jer-pers u{color:var(--accent)}
-  .jer-hoja.pers{border-left:3px solid var(--accent)}
-  .jer-hoja.pers>h4{background:var(--accent-soft)}
-  .jer-row select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);cursor:pointer}
-  .jer-cnt{font-size:11px;color:var(--faint);min-width:34px;text-align:right}
+  /* panel «Hojas y avisos»: cabecera de tarjeta, chips de estado y botones de acción */
+  .av-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .av-chip{font-size:11px;font-weight:700;padding:2px 9px;border-radius:12px;background:var(--soft);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .av-chip.ambar{background:var(--warn-soft);border-color:#f0d48a;color:var(--warn)}
+  .av-chip.rojo{background:#FDEEEE;border-color:#e9b3b3;color:var(--err)}
+  .av-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .btn-mini{font:600 12px inherit;padding:6px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--slate);cursor:pointer;transition:.15s}
+  .btn-mini:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-mini.acc{border-color:var(--accent);color:var(--accent);font-weight:700}
+  .btn-mini.acc:hover{background:var(--accent);color:#fff}
+  .av-corr{margin-top:8px;font-size:12.5px;color:var(--ok);font-weight:600}
+  .aviso.h-excl{border-color:var(--line);background:var(--soft)} .aviso.h-excl b{color:var(--muted)}
+  .escape-nota{margin-top:12px;padding:10px 14px;border:1px dashed var(--line);border-radius:12px;font-size:12px;color:var(--muted);background:var(--soft)}
+  /* separador entre la zona de ANÁLISIS (kpis · confianza · avisos) y la de SALIDA (descargas · tabla) */
+  .zona-sep{display:flex;align-items:center;gap:14px;margin:44px 0 20px}
+  .zona-sep::before,.zona-sep::after{content:"";flex:1;height:1px;background:var(--line)}
+  .zona-sep span{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+  .zona-sep.hide{display:none}
   /* hero: tiempo de proceso */
   .hero-stat{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(120deg,var(--accent-soft) 0%,var(--panel) 62%);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 22px;margin:4px 0 14px}
   .hs-l{display:flex;align-items:center;gap:14px}
@@ -181,8 +176,15 @@
   .hs-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
   .hs-r{font-size:13px;color:var(--slate);font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
   /* dashboard: anillo de integridad + donut por capítulo */
-  .dash{display:flex;gap:18px;margin:2px 0 6px}
+  .dash{display:flex;gap:14px;margin:2px 0 6px}   /* mismo hueco que .kpis para que las juntas casen */
   .dcard{flex:1 1 0;min-width:0;min-height:178px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 28px;display:flex;align-items:center;gap:30px;animation:fade .35s ease}
+  /* reparto 2/5 confianza · 3/5 capítulos, ALINEADO con la fila de 5 KPIs de arriba:
+     la tarjeta de confianza mide exactamente 2 tarjetas KPI + 1 hueco (56px = 4 huecos de 14).
+     La lista de capítulos es el chequeo visual clave — prioridad de espacio y TODOS los capítulos */
+  .dcard.d-conf{flex:0 0 calc((100% - 56px)/5*2 + 14px)}
+  .dcard.d-caps{flex:1 1 0;align-items:flex-start}
+  .d-caps .dc-text{display:flex;flex-direction:column;min-height:0;max-height:230px}
+  .d-caps .donut-leg{overflow-y:auto;padding-right:6px}
   .dcard.clk-avisos{cursor:pointer} .dcard.clk-avisos:hover{border-color:#f0d48a;box-shadow:0 6px 18px rgba(180,83,9,.12)}
   .dcard h3{margin:0 0 8px;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
   .dcard.nomqt{border-color:#f0d48a;background:var(--warn-soft)} .dcard.nomqt h3{color:var(--warn)} .dcard.nomqt .ic{font-size:46px;line-height:1;flex:none}
@@ -190,7 +192,7 @@
   .ring-n{font:700 26px "DM Sans",sans-serif;fill:var(--ink)}
   .d-sub{font-size:13.5px;color:var(--slate);line-height:1.5} .d-sub b{color:var(--ink);font-size:15px}
   .dc-text{flex:1;min-width:0}
-  @media(max-width:720px){ .dash{flex-wrap:wrap} }
+  @media(max-width:720px){ .dash{flex-wrap:wrap} .dcard.d-conf{flex:1 1 100%} }
   .dc-chart{flex:none}
   .donut-leg{font-size:12px;color:var(--slate);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;row-gap:6px;min-width:0}
   .donut-leg .li{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden}
@@ -211,65 +213,73 @@
   .tema:hover{border-color:var(--accent);transform:translateY(-1px)}
   /* ── Retoques de tema oscuro ── */
   body.dark .tag.t{background:#103033;border-color:#1d4b50}
-  body.dark .dz-pill{background:#103033;border-color:#1d4b50}
-  body.dark .dzs-msgy{background:#1d222b} body.dark .dzs-msgy .r{background:#39414c} body.dark .dzs-msgy .r.merge{background:#4a525e}
-  body.dark .dzs-clean .row{background:#262d37} body.dark .dzs-clean .row.alt{background:#1f252e}
   body.dark .aviso{border-color:#5c4a1e} body.dark .ok{border-color:#244a30}
 </style>
 </head>
 <body>
-<header class="hero">
+<header class="hero" style="display:none">
   <div class="hero-in">
     <div class="logo">
       <div class="logo-mark">K</div>
       <div class="logo-txt">
         <span class="logo-name">Kalam</span>
-        <span class="logo-sub" title="MQT · Mapa de Quantidades de Trabalho (mediciones)">Hopper · Aplicación para normalizar archivos MQT</span>
+        <span class="logo-sub" title="MQT · Mapa de Quantidades de Trabalho (mediciones)">Hopper · normalizador de MQT · <span id="heroVer"></span></span>
       </div>
     </div>
     <button id="tema" class="tema" title="Cambiar tema (claro / oscuro)" aria-label="Cambiar tema">🌙</button>
   </div>
 </header>
-<main>
-  <div class="pitch" id="pitch">
-    <h1 class="pitch-h">Del MQT en bruto a <span class="pitch-em">tabla normalizada</span>, en segundos</h1>
-    <p class="pitch-sub">Arrastra cualquier Mapa de Quantidades —heterogéneo, multihoja, de cualquier estudio— y Hopper lo normaliza a una tabla única, lista para tu sistema de costes.</p>
-    <div class="pitch-chips">
-      <span class="pchip">⚡ Sin IA, resultados repetibles</span>
-      <span class="pchip">🔒 100% en tu navegador, sin servidor</span>
-      <span class="pchip">📊 Multihoja → una sola tabla</span>
+<!-- PANTALLA DE CARGA (split): marca a la izquierda, formulario a la derecha.
+     La dropzone #drop nace aquí; al cargar datos, el JS la muda a #dropHome
+     (dentro de <main>) como barra compacta de "añadir más archivos". -->
+<div id="importScreen">
+  <div class="ip-wrap">
+    <div class="ip-left">
+      <div class="ip-left-grid"></div>
+      <div class="ip-left-inner">
+        <div class="ip-brand">
+          <div class="ip-mark">K</div>
+          <div class="ip-brand-txt">
+            <span class="ip-brand-name">Kalam</span>
+            <span class="ip-brand-sub">Hopper · normalizador de MQT · <span id="ipVer"></span></span>
+          </div>
+        </div>
+        <h1 class="ip-headline">Normalizador de <em>archivos MQT</em></h1>
+        <p class="ip-tagline">Carga un archivo MQT y obtén la tabla normalizada y la hoja de costes para el sistema de Kalam.</p>
+        <ul class="ip-features">
+          <li class="ip-feat"><span class="ip-feat-dot"></span>Detecta columnas y jerarquía en cualquier formato de MQT</li>
+          <li class="ip-feat"><span class="ip-feat-dot"></span>Combina varios archivos y hojas en una sola tabla</li>
+          <li class="ip-feat"><span class="ip-feat-dot"></span>Hoja de costes lista para pegar en el sistema de costes</li>
+          <li class="ip-feat"><span class="ip-feat-dot"></span>Confianza y avisos hoja a hoja: nada falla en silencio</li>
+          <li class="ip-feat"><span class="ip-feat-dot"></span>Procesado localmente · los datos no salen del navegador</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ip-right">
+      <div class="ip-form">
+        <p class="ip-form-eyebrow">Kalam · Hopper</p>
+        <h2 class="ip-form-title">Importar archivo MQT</h2>
+        <p class="ip-form-sub">Carga el archivo MQT en Excel. Puedes cargar varios: se combinan en una sola tabla.</p>
+        <div id="dropSlot">
+          <label class="dropzone" id="drop">
+            <input type="file" id="file" accept=".xlsx,.xls,.xlsm" multiple>
+            <div class="dz-inner">
+              <div class="dz-icon-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></div>
+              <div class="dz-main">Arrastra aquí tus archivos MQT</div>
+              <div class="dz-sub">o haz clic para seleccionar · uno o varios · .xlsx, .xls o .xlsm</div>
+            </div>
+            <div class="dz-compact">＋ Añadir más archivos MQT <span class="dz-compact-sub">· o arrastra aquí</span></div>
+          </label>
+        </div>
+        <div id="ipError"></div>
+        <p class="ip-privacy">Los datos se procesan en tu navegador. No se suben a ningún servidor.</p>
+      </div>
     </div>
   </div>
-  <label class="dropzone" id="drop">
-    <input type="file" id="file" accept=".xlsx,.xls" multiple>
-    <div class="dz-demo" aria-hidden="true">
-      <div class="dz-col">
-        <div class="dzs dzs-msgy">
-          <span class="r" style="width:70%"></span>
-          <span class="r" style="width:92%;margin-left:8%"></span>
-          <span class="r merge"></span>
-          <span class="r" style="width:48%"></span>
-          <span class="r" style="width:82%;margin-left:6%"></span>
-        </div>
-        <span class="dz-cap">MQT en bruto</span>
-      </div>
-      <span class="dz-arrow">→</span>
-      <div class="dz-col">
-        <div class="dzs dzs-clean">
-          <span class="hd"></span>
-          <span class="row"></span>
-          <span class="row alt"></span>
-          <span class="row"></span>
-          <span class="row alt"></span>
-        </div>
-        <span class="dz-cap">Tabla normalizada</span>
-      </div>
-    </div>
-    <div class="dz-title">Arrastra aquí tus archivos MQT</div>
-    <div class="dz-sub">o haz clic para seleccionarlos · puedes cargar uno o varios, se combinan en una sola tabla · admite <b>.xlsx</b> y <b>.xls</b></div>
-    <span class="dz-pill">🔒 Tus datos no salen de tu ordenador: el procesamiento es local</span>
-    <div class="dz-compact">＋ Añadir más archivos MQT <span class="dz-compact-sub">· o arrastra aquí</span></div>
-  </label>
+</div>
+
+<main style="display:none">
+  <div id="dropHome"></div>
 
   <div id="status" class="hide"></div>
   <div id="kpis"></div>
@@ -283,18 +293,14 @@
     <div id="archivos"></div>
   </div>
 
-  <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Avisos</summary><div id="avisos" style="margin-top:10px"></div></details>
-  <details class="panel hide" id="detalleWrap"><summary id="detalleSum">Detalle por hoja</summary><div id="detalle" style="margin-top:10px"></div></details>
-
-  <details class="panel hide" id="jerarquiaWrap"><summary id="jerarquiaSum">Revisar jerarquía (opcional)</summary>
-    <div id="jerarquiaIntro" class="muted" style="margin:8px 0 12px;font-size:12.5px">Una <b>rama de ejemplo</b> por hoja (la hoja y un título de cada nivel; el <span style="color:var(--faint)">×N</span> es cuántos hay). Como la estructura suele ser igual en todas, un cambio <b>se aplica a todas las hojas al instante</b> y lo ves en la tabla. Si alguna hoja es distinta, pulsa <b>personalizar</b> en su cabecera y ajústala sola. Al final, <b>Guardar cambios</b>. O ignóralo: la salida automática ya es válida.</div>
-    <div id="jerarquia"></div>
-    <div id="jerarquiaBtns" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-      <button class="primary" id="jerAplicar">Guardar cambios</button>
-      <button class="secondary" id="jerReset">Restaurar automático</button>
-      <span class="muted" id="jerInfo" style="align-self:center;font-size:12.5px"></span>
-    </div>
+  <!-- Panel único de trabajo: todas las hojas con su estado, los avisos en claro
+       y, cuando la app tiene un arreglo verificado, un botón para aplicarlo. -->
+  <details class="panel hide" id="avisosWrap"><summary id="avisosSum">Hojas y avisos</summary>
+    <div id="avisos" style="margin-top:10px"></div>
+    <div class="escape-nota">¿Algo que la app no puede arreglar? Descarga el Excel normalizado, corrígelo a mano en Excel y vuelve a cargarlo: la app lo reconoce y regenera la hoja de costes.</div>
   </details>
+
+  <div class="zona-sep hide" id="zonaSep"><span>Resultado normalizado</span></div>
 
   <div class="toolbar hide" id="toolbar">
     <button class="primary" id="dl">⬇ Descargar Excel normalizado</button>
@@ -347,7 +353,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   var STRUCT=/^[A-Za-z]{0,4}\d*(\.[A-Za-z0-9]+)*$/;
   function isStructCode(s){ var pre=(String(s).match(/^[A-Za-z]+/)||[""])[0];   // prefijo alfabético en MAYÚSCULAS: los códigos son A/ARQ/C1; palabras-etiqueta (Nota, Item, Obs) van en minúsculas y NO son código
     return STRUCT.test(s) && /\d/.test(s) && s.toUpperCase().indexOf("CG")!==0 && (!pre || pre===pre.toUpperCase()); }
-  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok"
+  function isLetterChapter(s){ return /^[A-Z]{1,4}\.?$/.test(s) && !/^(NOTA|OBS|NB|PS)\.?$/.test(s); }   // capítulo-letra: MAYÚSCULAS (A, B, ARQ, B.) — evita ruido tipo "ok" y palabras-nota (NOTA en la col de código con la advertencia al lado NO es un capítulo; caso Casa das Nunes)
 
   function rec(o){
     var r={}; CANON.forEach(function(c){ r[c]=""; });
@@ -545,6 +551,43 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       }
       if(sp>=0 && spN>=3){ cols.codePrefix=sp; used[sp]=1; }
     }
+    // código partido NUMÉRICO en dos columnas adyacentes: col A = código punteado
+    // TERMINADO EN PUNTO («1.1.1.1.») y col B = último segmento entero corto («1»..«99»).
+    // Firma estricta (la col A termina en punto SIEMPRE — un código normal con algún «1.»
+    // suelto no dispara — y B la acompaña en la gran mayoría de filas): se ANULA la
+    // elección previa y el texto pasa a la primera columna de texto a la derecha de B.
+    // Caso Ferreria Borges C2–C4 («DN 40» se leía como código y la partida quedaba vacía).
+    {
+      var mejorA=-1, mejorN=0;
+      for(var pa=0; pa<6 && pa+1<N; pa++){
+        if(pa+1===cols.qty || pa+1===cols.price || pa+1===cols.unit) continue;
+        var nPar=0, aDot=0, aSinDot=0;
+        for(var rr3=start; rr3<grid.length && rr3<start+500; rr3++){
+          var rw3=grid[rr3]||[];
+          var av=txt(cell(rw3,pa)).replace(/\s+/g,""), bv=txt(cell(rw3,pa+1)).replace(/\s+/g,"");
+          if(/^\d+(\.\d+)*\.$/.test(av)){ aDot++; if(/^\d{1,2}$/.test(bv)) nPar++; }
+          else if(/^\d+(\.\d+)+$/.test(av)) aSinDot++;   // código punteado SIN punto final: columna de código normal, no prefijo
+        }
+        if(aDot>=5 && nPar>=aDot*0.8 && aSinDot<=aDot*0.15 && nPar>mejorN){ mejorN=nPar; mejorA=pa; }
+      }
+      if(mejorA>=0){
+        var B=mejorA+1;
+        var dnew=-1;
+        for(var dc=B+1; dc<Math.min(N,B+4); dc++){
+          if(dc===cols.qty||dc===cols.price||dc===cols.unit) continue;
+          var nTxt=0, nTot=0;
+          for(var rr4=start; rr4<grid.length && rr4<start+500; rr4++){
+            var dv2=txt(cell(grid[rr4]||[],dc)); if(!dv2) continue; nTot++;
+            if(dv2.length>=3 && !/^[\d.,]+$/.test(dv2)) nTxt++;
+          }
+          if(nTot>=5 && nTxt/nTot>=0.7){ dnew=dc; break; }
+        }
+        if(dnew>=0){
+          cols.codePrefix=mejorA; cols.code=B; cols.desc=dnew;
+          used[mejorA]=1; used[B]=1; used[dnew]=1;
+        }
+      }
+    }
 
     var familia = (cols.code!=null && met[cols.code] && met[cols.code].esCodigo) ? "codigo" : "formato";
     return { headerRow:headerRow, cols:cols, familia:familia, headerScore:bestScore };
@@ -581,7 +624,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   }
 
   function parseCodigo(grid, cols, archivo, hoja, headerRow, stats, est, stripSeg, stripCero){
-    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false;
+    var out=[], titles={}, cur=null, curEst=null, start = headerRow>=0 ? headerRow+1 : 0, letterCh=false, textCh=false, capCh=false;
     // ¿esquema de capítulos por LETRA real (A, B, C…)? Solo si hay ≥3 letras sueltas
     // distintas como título: una letra aislada ("E ESTALEIRO") es un capítulo más, no un
     // esquema. Con esquema real, los códigos numéricos reinician bajo cada letra y cuelgan
@@ -590,21 +633,38 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var _c=txt(cell(_rw,cols.code)).replace(/\s+/g,""), _d=txt(cell(_rw,cols.desc)), _q=toNum(cell(_rw,cols.qty));
       if(/^[A-Z]\.?$/.test(_c) && _d && _q===null) _ltr[_c.replace(".","")]=1; }
     var esquemaLetras = Object.keys(_ltr).length>=3;
-    var unidadCtx="", unidadCtxNivel=0;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1")
+    // esquema "CAP.n": capítulos codificados CAP.0 / CAP. 1 / CAP.2 en la columna de código
+    var _nCap=0; for(var _j=start;_j<grid.length;_j++){ var _rw2=grid[_j]; if(!_rw2) continue;
+      if(/^CAP\.?\s*\d+\.?$/i.test(txt(cell(_rw2,cols.code)))) _nCap++; }
+    var esquemaCAP = _nCap>=2;
+    var unidadCtx="", unidadCtxNivel=0, unidadCtxTit=null;   // unidad heredada del título padre (p.ej. "1.1 …(m2)" da unidad a sus hijos "1.1.1"); el título que la declaró es una PARTIDA COMPUESTA
     function pushEst(o){ o.fila=(typeof fila==="number"?fila:0); if(est) est.push(o); curEst=o; return o; }
     for(var i=start;i<grid.length;i++){
       var row=grid[i], fila=i+1;
       var code=txt(cell(row,cols.code)), desc=txt(cell(row,cols.desc)), unit=txt(cell(row,cols.unit));
       if(cols.codePrefix!=null){ var pref=txt(cell(row,cols.codePrefix)); if(pref) code=combinar(pref,code); }   // código en 2 columnas (prefijo Bloco)
-      else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
+      else if(code){ var _cs=normCod(code); if(_cs!==code && isStructCode(_cs)) code=_cs; }   // normaliza espacios y punto final ("A 1.1.1.1", "ARQ 1.", "1.") -> sin esto, "1. REDE DE TERRAS" no se reconoce como subcapítulo y las partidas sin código de debajo pierden el capítulo
       if(stripSeg && code.indexOf(stripSeg+".")===0) code=code.slice(stripSeg.length+1);   // capa 3: quita el primer segmento constante degenerado
       if(stripCero){ var _z=code.replace(/(\.0+)+$/,""); if(_z && isStructCode(_z)) code=_z; }   // capa 3: convenio "1.0"=capítulo, "1.1.0"=subcapítulo -> quita el cero final
       if(unit==="0") unit="";
       if(desc==="0") desc="";   // celda rellena con 0 (hay hojas que ponen 0 en celdas vacías): no es descripción ni título
+      if(code==="0" && !desc) code="";   // fila rellena de ceros (fórmulas a 0): un "0" solo, sin descripción, no es un código
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
-      if(!code && !desc && qty===null){ stats.vacia++; continue; }
+      if(!code && !desc && (qty===null || (qty===0 && !unit))){ stats.vacia++; continue; }   // fila vacía o basura de ceros: no cuenta como medición
       if(/^(sub\s*total|total)\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
+      if(esquemaCAP && /^CAP\.?\s*\d+\.?$/i.test(code)){   // capítulo codificado "CAP.n": nivel 1; el resto de códigos cuelga un nivel (capCh)
+        if(desc && !(cur && cur.nivel===1 && cur.code===code)){
+          stats.titulo++; capCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
+          pushEst({codigo:code.replace(/\s+/g,""),nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
+        }
+        continue; }
       if(isLetterChapter(code) && !unit && !qty){   // capítulo-letra: «A»/«B» sin unidad ni cantidad (0 = título; hay MQT que ponen 0 en totales)
+        if(capCh){   // bajo esquema CAP.n, una letra ("CG") es un bloque DENTRO del capítulo: subcapítulo, no pisa el nivel 1
+          if(desc && !(cur && cur.nivel===2 && cur.code===code)){
+            stats.titulo++; titles[2]=desc; Object.keys(titles).forEach(function(k){ if(+k>2) delete titles[k]; }); cur={code:code,desc:desc,nivel:2};
+            pushEst({codigo:code,nat:natDe(titles,2),ud:"",partida:desc,cantidad:""});
+          }
+          continue; }
         if(desc && !(cur && cur.nivel===1 && cur.code===code)){   // solo la 1ª aparición con texto; las filas de continuación (celda combinada, mismo código sin texto) NO resetean el capítulo
           stats.titulo++; letterCh=true; titles={1:desc}; cur={code:code,desc:desc,nivel:1};
           pushEst({codigo:code,nat:natDe(titles,1),ud:"",partida:desc,cantidad:""});
@@ -647,10 +707,26 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       // número ("A1" = A › A1) y hay un capítulo-letra activo. Así "A","A1","A1.1"
       // anidan en 3 niveles en vez de colapsar letra y primer número en uno.
       var _seg = code.split(".");
-      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto, también
+      var nivel = _seg.length + ((letterCh && (/^[A-Za-z]+\d/.test(_seg[0]) || (esquemaLetras && /^\d/.test(_seg[0])))) ? 1 : 0) + (textCh||capCh ? 1 : 0);   // letra pegada ("A1") o número suelto bajo un esquema de letras real: cuelga un nivel. Y bajo capítulo-macro de texto o esquema CAP.n, también
       var unitEff = unit || (qty!==null ? unidadCtx : "");   // fila con código y cantidad pero sin unidad: hereda la del título padre
       if(qty!==null && unitEff){
         stats.partida++;
+        if(!unit && unidadCtxTit && nivel>unidadCtxNivel){
+          // LÍNEA DE DIMENSIONES de una partida compuesta: el título que declaró la unidad
+          // ES la partida; esta fila («P0», «restante paredes»…) es su DETALLE, no una
+          // partida propia. La jerarquía se toma POR ENCIMA del título (el título no es
+          // subcapítulo de sus propias líneas). Caso Rossio Place.
+          var Jd=jer(titles, unidadCtxNivel);
+          out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
+            division:Jd.division,capitulo:Jd.capitulo,subcapitulo:Jd.subcapitulo,seccion:Jd.seccion,
+            ruta:Jd.ruta,codigo:code,partida:unidadCtxTit.desc,detalle:desc,
+            unidad:unitEff,medicion:qty}));
+          if(curEst && curEst.nat==="Partida" && curEst.codigo===unidadCtxTit.code){
+            curEst.cantidad=(Number(curEst.cantidad)||0)+qty;   // suma al total de su partida en la hoja de costes
+            if(!curEst.ud) curEst.ud=unitEff;
+          } else pushEst({codigo:unidadCtxTit.code,nat:"Partida",ud:unitEff,partida:unidadCtxTit.desc,cantidad:qty});
+          continue;   // cur NO cambia: el nodo vigente sigue siendo la partida compuesta
+        }
         var Jp=jer(titles,nivel);
         out.push(rec({archivo:archivo,hoja:hoja,fila_origen:fila,
           division:Jp.division,capitulo:Jp.capitulo,subcapitulo:Jp.subcapitulo,seccion:Jp.seccion,
@@ -659,13 +735,16 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         pushEst({codigo:code,nat:"Partida",ud:unitEff,partida:desc,cantidad:qty});
       } else if(desc && cur && cur.code===code){   // mismo código que el nodo vigente y sin medición: nota/parcial de continuación (p.ej. «A2» repetido con una observación). NO es un subtítulo nuevo: no toca la jerarquía.
         stats.nota++; out.push(["__nota__",hoja,fila,desc]);
+      } else if(desc && /^nota\b/i.test(desc) && qty===null){   // prosa de nota con código propio: NO es un título, no toca la jerarquía
+        stats.nota++; out.push(["__nota__",hoja,fila,desc]);
       } else if(desc){
-        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; }   // salimos del subárbol que declaró la unidad
-        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; }              // este título declara unidad para sus hijos
+        if(nivel<=unidadCtxNivel){ unidadCtx=""; unidadCtxNivel=0; unidadCtxTit=null; }   // salimos del subárbol que declaró la unidad
+        if(unit){ unidadCtx=unit; unidadCtxNivel=nivel; unidadCtxTit={code:code,desc:desc}; }   // este título declara unidad para sus hijos: es una partida compuesta
         stats.titulo++; titles[nivel]=desc;
         Object.keys(titles).forEach(function(k){ if(+k>nivel) delete titles[k]; });
         cur={code:code,desc:desc,nivel:nivel};
-        pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
+        if(unit) pushEst({codigo:code,nat:"Partida",ud:unit,partida:desc,cantidad:""});   // partida compuesta: a costes como PARTIDA (sus líneas de detalle le sumarán la cantidad), no como subcapítulo
+        else pushEst({codigo:code,nat:natDe(titles,nivel),ud:"",partida:desc,cantidad:""});
       } else { stats.vacia++;   // fila de continuación: mismo código sin texto (celda combinada). NO resetea la jerarquía ni emite título vacío.
       }
     }
@@ -706,9 +785,10 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       else if(/\s/.test(code)){ var _cs=normCod(code); if(isStructCode(_cs)) code=_cs; }   // código con espacios/punto final ("A 1.1.1.1", "ARQ 1.") -> normaliza
       if(unit==="0") unit="";
       if(desc==="0") desc="";   // celda rellena con 0: no es descripción ni título
+      if(code==="0" && !desc) code="";   // fila rellena de ceros (fórmulas a 0): un "0" solo, sin descripción, no es un código
       var qty=toNum(cell(row,cols.qty)), price=toNum(cell(row,cols.price));
       if(desc==="DESCRITIVO") continue;
-      if(!code && !desc && qty===null){ stats.vacia++; continue; }
+      if(!code && !desc && (qty===null || (qty===0 && !unit))){ stats.vacia++; continue; }   // fila vacía o basura de ceros: no cuenta como medición
       if(/^total\b/i.test(desc) && qty===null){ stats.subtotal++; continue; }
       var ruta=[capitulo,subcap].filter(Boolean).join(" > ");
       if(code){
@@ -772,13 +852,19 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     else if((inf.headerRow<0 || inf.headerScore<3) && est>0 && np<est)
       a.push("Mapeo poco seguro (cabecera "+(inf.headerRow<0?"no localizada":"poco clara")+"); asumí "+cols+". Si las partidas no cuadran, ajusta las columnas.");
 
-    // 3) Unidades raras (proporcional: solo concluye si afecta a muchas filas)
-    var us={}, nU=0; medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(u&&unidadSospechosa(u)){us[u]=1;nU++;} });
-    var ul=Object.keys(us);
-    if(ul.length){
-      if(nU>=np*0.5) a.push(nU+" de "+np+" partidas con unidad rara ("+ul.slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
-      else a.push("Unidades poco habituales en "+nU+" fila"+(nU>1?"s":"")+" ("+ul.slice(0,5).join(", ")+"); compruébalas si te chocan.");
-    }
+    // 3) Unidades raras. Dos señales MUY distintas:
+    //    - MAYORÍA de la hoja con unidad sospechosa (larga o numérica) -> columna probablemente
+    //      equivocada: se avisa fuerte.
+    //    - En MINORÍA, solo avisa lo NUMÉRICO ("1", "2,5"): un número nunca es una unidad y
+    //      delata filas con la columna corrida. Las unidades largas en minoría ("m2 em planta",
+    //      "ml de rodapé") son unidades legítimas con apellido: NO se avisa (era casi siempre
+    //      un falso aviso).
+    var us={}, nU=0, usN={}, nN=0;
+    medRows.forEach(function(r){ var u=String(r.unidad||"").trim(); if(!u) return;
+      if(unidadSospechosa(u)){ us[u]=1; nU++; }
+      if(/^[\d.,\s]+$/.test(u)){ usN[u]=1; nN++; } });
+    if(nU>=np*0.5 && nU>0) a.push(nU+" de "+np+" partidas con unidad rara ("+Object.keys(us).slice(0,5).join(", ")+") — puede que la columna "+colLetra(c.unit)+" no sea la de unidades.");
+    else if(nN>0) a.push(nN+" fila"+(nN>1?"s":"")+" con un número como unidad ("+Object.keys(usN).slice(0,4).join(", ")+"): un número no es una unidad — en esas filas la columna va corrida o el dato está mal en origen.");
 
     // 4) Cantidad 0: solo es señal si son MAYORÍA (entonces la columna de cantidad puede
     //    estar mal detectada). Unas pocas a 0 son NORMALES (partidas aún sin medir): no se
@@ -806,6 +892,27 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     } else if(sinCap===n){
       a.push("Capítulo sin asignar en toda la hoja (probablemente el capítulo es la propia hoja).");
       pen=Math.max(pen,0.1);   // benigno: apenas penaliza
+    } else if(sinCap>=8 && sinCap/n>=0.08){
+      // A2) jerarquía a trozos: parte de la hoja CON capítulo y parte SIN él. Casi seguro hay
+      //     un bloque (especialidad que reinicia numeración, tabla anexa…) cuyo título no se
+      //     reconoció como capítulo. Distinto del caso benigno de arriba (todo vacío).
+      a.push(sinCap+" de "+n+" partidas sin capítulo mientras el resto de la hoja sí lo tiene: probablemente hay un bloque (especialidad, anexo) cuyo título no se reconoció como capítulo. Revísalo.");
+      pen=Math.max(pen, Math.min(0.5, 0.15+(sinCap/n)*0.5));
+    }
+    // A3) partidas sin descripción ni detalle: filas que no dicen qué se mide (ruido o
+    //     columna de descripción mal asignada). Unas pocas pueden ser legítimas; muchas, no.
+    var sinTxt=0; for(var t=0;t<n;t++) if(!txt(medRows[t].partida) && !txt(medRows[t].detalle)) sinTxt++;
+    if(sinTxt>=5 && sinTxt/n>=0.05){
+      a.push(sinTxt+" de "+n+" partidas sin descripción ni detalle: filas que no dicen qué se mide. Puede ser ruido del original o una columna mal asignada.");
+      pen=Math.max(pen, Math.min(0.4, 0.1+(sinTxt/n)*0.4));
+    }
+    // A4) columna de "unidad" con pinta de designación: si casi cada fila trae una unidad
+    //     DISTINTA (D1, D2, D3…), no son unidades (m2, ml, un se repiten siempre). Señal de
+    //     hoja auxiliar (mapa de vanos/valas) o columna mal detectada.
+    var uds={}, nUd=0; for(var u=0;u<n;u++){ var _u=txt(medRows[u].unidad); if(_u){ uds[_u]=1; nUd++; } }
+    if(nUd>=10 && Object.keys(uds).length/nUd>=0.5){
+      a.push("La columna de unidad trae un valor distinto en casi cada fila ("+Object.keys(uds).slice(0,4).join(", ")+"…): parecen designaciones, no unidades. Puede ser una hoja auxiliar o una columna mal detectada.");
+      pen=Math.max(pen,0.35);
     }
     // B) misma descripción de partida repetida con el texto real en «detalle»
     //    (síntoma de columna de descripción mal asignada o herencia errónea)
@@ -849,7 +956,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(!resName) return null;
     var grid=gridDe(wb.Sheets[resName], XLSX), ents=[], lastTop=null, byCode={};
     for(var r=0;r<grid.length;r++){
-      var code=txt(cell(grid[r],0)), title=txt(cell(grid[r],1));
+      var code=txt(cell(grid[r],0)), title="";
+      for(var tc=1;tc<=3 && !title;tc++){ var tv=txt(cell(grid[r],tc)); if(/[A-Za-zÀ-ÿ]{2,}/.test(tv)) title=tv; }   // el título puede venir en col 1, 2 o 3 (Hidden Away lo trae en la 2)
       if(!code || !title) continue;
       if(!/^[A-Za-z]?\d{0,2}$/.test(code)) continue;     // A, B, C1, 1, 13… (no "GRAF_B" ni texto)
       if(!/[A-Za-zÀ-ÿ]{2,}/.test(title)) continue;       // el título debe tener letras
@@ -860,7 +968,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(ents.length<3) return null;
     var pref={}, casan=0;
     nombres.forEach(function(n){
-      var e=byCode[n.trim().toUpperCase()]; if(!e) return;
+      var e=byCode[n.trim().toUpperCase()];
+      if(!e){ var npref=n.trim().split(/[.\-_ )]/)[0].toUpperCase(); if(npref && npref!==n.trim().toUpperCase()) e=byCode[npref]; }   // «4.AGUA» → «4»: el código del índice va de prefijo en el nombre de la pestaña
+      if(!e) return;
       pref[n] = e.top ? [e.title] : [(e.parent?e.parent.title:""), e.title].filter(Boolean);
       casan++;
     });
@@ -1069,10 +1179,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       //     interpretado: o casi todo es cantidad 0, o no hay unidades en absoluto
       //     (un resumen lista disciplinas con su importe, sin unidad).
       if(i.estMedidas===0 && i.nMed>0){
-        var ms=data[h].medRows, z=0, sinU=0;
-        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; if(!txt(ms[k].unidad)) sinU++; }
+        var ms=data[h].medRows, z=0, sinU=0, realU=0;
+        for(var k=0;k<ms.length;k++){ var mm=ms[k].medicion; if(mm===0||mm===""||mm==null) z++; var _u=txt(ms[k].unidad); if(!_u) sinU++; else if(esUnidad(_u)) realU++; }
         if(z/ms.length>=0.9){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (subtotales a 0, sin unidades reales)"; }
         else if(sinU/ms.length>=0.95){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (sin unidades; parece un resumen/lista de importes)"; }
+        else if(realU/ms.length<0.2 && ms.length<=40){ i.excluida=true; i.noFuente=true; i.motivo="no es hoja de medición (las «unidades» no son unidades reales: parece un resumen, gráfico u hoja auxiliar)"; }
+        else if(realU/ms.length<0.2){ i.est0Sospecha=true; }   // hoja larga sin unidades reales: puede ser medición por dimensiones (no se descarta) pero NO merece confianza plena
       }
     });
 
@@ -1087,6 +1199,17 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       var aud=auditar(data[h].medRows);                 // capa 2: auto-auditoría
       i.avisos=avisosDe(i, data[h].medRows).concat(aud.avisos);
       i.confianza=aud.confianza;
+      if(i.est0Sospecha) i.confianza=Math.min(i.confianza, 0.7);   // sin unidades reales en toda la hoja: ámbar aunque la tabla sea coherente por dentro
+      // RECONCILIACIÓN como veredicto (no solo aviso): comparar lo extraído con las
+      // filas del ORIGEN con pinta de medición (número + unidad). Es agnóstica al
+      // formato: si el motor no entendió la hoja, este contador no cuadra y la
+      // confianza CAE aunque la tabla resultante parezca coherente por dentro.
+      var _np=data[h].medRows.length, _est=i.estMedidas||0;
+      if(_est>=5){
+        if(_np===0)              i.confianza=Math.min(i.confianza, 0.3);
+        else if(_np<_est*0.5)    i.confianza=Math.min(i.confianza, 0.5);
+        else if(_np<_est*0.7)    i.confianza=Math.min(i.confianza, 0.7);
+      }
       if(i.compactado){   // jerarquía incompleta en origen: capítulo inferido (compactado). Se marca, no se cae.
         i.avisos.push(i.compactado+" partida"+(i.compactado>1?"s":"")+" con capítulo inferido (faltaba el nivel superior en origen): el título más alto presente pasó a capítulo. Revísalo.");
         i.confianza=Math.min(i.confianza, 0.9);
@@ -1287,7 +1410,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   var API={CANON:CANON,COSTHEAD:COSTHEAD,COSTHEAD_F:COSTHEAD_F,NIV2NAT:NIV2NAT,txt:txt,toNum:toNum,isStructCode:isStructCode,autoDetect:autoDetect,
            parseCodigo:parseCodigo,parseFormato:parseFormato,normalizar:normalizar,construirTitulos:construirTitulos,
            aplicarTitulos:aplicarTitulos,titulosDeMed:titulosDeMed,estDesdeMed:estDesdeMed,costesFormulados:costesFormulados,
-           clavesDe:clavesDe,contencion:contencion,acumular:acumular};
+           clavesDe:clavesDe,contencion:contencion,acumular:acumular,
+           auditar:auditar,esHojaGenerica:esHojaGenerica,limpiaPrefijoHoja:limpiaPrefijoHoja};
   if(typeof module!=="undefined"&&module.exports) module.exports=API;
   else root.HopperCore=API;
 })(typeof window!=="undefined"?window:this);
@@ -1297,6 +1421,11 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
    Dentro de cada fichero se deduplica por hojas; entre ficheros, por fichero. ---- */
 (function(){
   var XLSX = window.XLSX, core = window.HopperCore;
+  // versión de la app: única fuente de verdad. Se pinta en la pantalla de carga
+  // (#ipVer) y en el header del panel de datos (#heroVer). Subirla aquí al publicar.
+  var VERSION = "v1";
+  (function(){ var a=document.getElementById("ipVer"), b=document.getElementById("heroVer");
+    if(a) a.textContent=VERSION; if(b) b.textContent=VERSION; })();
   var cargados = [];   // [{archivo, det}]
   var errores = [];    // [{nombre, motivo}] — archivos que no se pudieron cargar (no se silencian)
   var merged = null;
@@ -1333,7 +1462,9 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
   $("dash").addEventListener("click",function(ev){ if(ev.target.closest && ev.target.closest(".clk-avisos")) abrirAvisos(); });
   function abrirAvisos(){ var w=$("avisosWrap"); if(w.classList.contains("hide")) return; w.open=true; w.scrollIntoView({behavior:"smooth",block:"center"}); }
 
-  function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : ""; }
+  function procesando(on, txt){ var s=$("status"); s.classList.toggle("hide",!on); s.innerHTML = on ? ('<span class="spin"></span>'+esc(txt||"Procesando…")) : "";
+    // eco en la dropzone: en la pantalla de carga el #status no es visible (está en main)
+    var dzm=document.querySelector("#drop .dz-main"); if(dzm) dzm.textContent = on ? (txt||"Procesando…") : "Arrastra aquí tus archivos MQT"; }
 
   function limpiarFiltro(){ filtro=""; if($("buscar")) $("buscar").value=""; }
 
@@ -1355,7 +1486,6 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
       rd.onload=function(){
         try{ var wb=XLSX.read(new Uint8Array(rd.result),{type:"array"});
           var det=core.normalizar(wb, f.name, XLSX, {});
-          det.mediciones.forEach(function(r){ r._o={d:r.division,c:r.capitulo,s:r.subcapitulo,e:r.seccion,r:r.ruta}; });   // snapshot inmutable del original (para preview en vivo)
           cargados.push({archivo:f.name, wb:wb, det:det}); }
         catch(e){ errores.push({nombre:f.name, motivo:"no se pudo leer ("+(e&&e.message?e.message:"archivo dañado o protegido con contraseña")+")"}); }
         fin();
@@ -1370,9 +1500,89 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     render();
   }
 
-  // ---- revisión de jerarquía: por hoja, UNA rama de ejemplo (la hoja + un título de cada
-  // nivel detectado). Cambiar el nivel de una fila se aplica a TODOS los títulos de ese nivel
-  // en la hoja. Sin propagación entre hojas. ----
+  // ---- acciones sobre hojas (desde el panel «Hojas y avisos»): arreglos concretos,
+  //      deterministas y pre-verificados. La regla: un botón solo se ofrece si aplicarlo
+  //      en memoria hace SUBIR la confianza de la auditoría (misma filosofía que la capa 3).
+  //      Para lo demás está el flujo de escape: descargar → corregir en Excel → recargar. ----
+  function candidatoHojaCapitulo(fi,h){
+    // ¿procede «usar el nombre de la hoja como capítulo»? Devuelve el capítulo limpio si
+    // (a) toda la hoja está sin capítulo, (b) el nombre no es genérico (MQT/Folha/Resumo…),
+    // y (c) la auditoría confirma EN MEMORIA que la confianza sube al aplicarlo.
+    var c=cargados[fi]; if(!c) return null;
+    var i=c.det.info[h]; if(!i||i.excluida||i.capNombreHoja) return null;
+    if(core.esHojaGenerica(h)) return null;
+    if((i.avisos||[]).some(function(a){ return String(a).indexOf("parecen designaciones")>=0; })) return null;   // sospechosa de hoja auxiliar: el arreglo correcto es excluirla, no darle capítulo
+    var cap=core.limpiaPrefijoHoja(h); if(!cap) return null;
+    var rows=c.det.mediciones.filter(function(r){return r.hoja===h;});
+    if(!rows.length) return null;
+    for(var k=0;k<rows.length;k++) if(String(rows[k].capitulo||"").trim()) return null;   // solo si TODA la hoja carece de capítulo
+    var sim=rows.map(function(r){ var o=Object.create(r); o.capitulo=cap; return o; });   // simulación barata sin tocar datos
+    // guardia: la auditoría no debe EMPEORAR con el arreglo (puede quedar igual si otra
+    // penalización independiente —p.ej. partidas sin código— sigue vigente tras aplicarlo)
+    var antes=(i.confianza==null?1:i.confianza), despues=core.auditar(sim).confianza;
+    return (despues>=antes) ? cap : null;
+  }
+  function reauditarHoja(c,i,h){
+    // re-audita una hoja tras una acción: capa 2 de nuevo + el mismo tope de cobertura
+    // que aplica el motor (si faltan mediciones respecto al origen, la confianza no sube)
+    var rows=c.det.mediciones.filter(function(r){return r.hoja===h;});
+    var aud=core.auditar(rows), conf=aud.confianza, est=i.estMedidas||0, np=rows.length;
+    i.avisos=aud.avisos;
+    if(est>=5 && np<est*0.7){   // el tope de cobertura sigue mandando: sin su aviso sería una confianza baja inexplicada
+      conf=Math.min(conf, np===0?0.3:(np<est*0.5?0.5:0.7));
+      i.avisos.push("El original aparenta ~"+est+" mediciones y en la tabla hay "+np+": revisa la cobertura (puede faltar parte de la hoja).");
+    }
+    i.confianza=conf;
+  }
+  function refrescarTrasAccion(c){
+    c.det.estructura=core.estDesdeMed(c.det.mediciones);   // hoja de costes coherente con la tabla
+    merged = cargados.length ? core.acumular(cargados) : null;
+    render();
+  }
+  function accionHojaCapitulo(fi,h){
+    var cap=candidatoHojaCapitulo(fi,h); if(!cap) return;
+    var c=cargados[fi], i=c.det.info[h];
+    c.det.mediciones.forEach(function(r){ if(r.hoja===h && !String(r.capitulo||"").trim()){ r.capitulo=cap; r._capHoja=true; } });
+    i.capNombreHoja=cap;
+    reauditarHoja(c,i,h);
+    i.avisos.push("Capítulo «"+cap+"» tomado del nombre de la hoja (aplicado por ti).");
+    refrescarTrasAccion(c);
+  }
+  function deshacerHojaCapitulo(fi,h){
+    var c=cargados[fi]; if(!c) return; var i=c.det.info[h]; if(!i||!i.capNombreHoja) return;
+    c.det.mediciones.forEach(function(r){ if(r.hoja===h && r._capHoja){ r.capitulo=""; delete r._capHoja; } });
+    delete i.capNombreHoja;
+    reauditarHoja(c,i,h);
+    refrescarTrasAccion(c);
+  }
+  function accionExcluirHoja(fi,h){
+    var c=cargados[fi]; if(!c) return; var i=c.det.info[h]; if(!i||i.excluida) return;
+    c.det._stash=c.det._stash||{};   // las filas no se pierden: se apartan para poder volver
+    c.det._stash[h]=c.det.mediciones.filter(function(r){return r.hoja===h;});
+    c.det.mediciones=c.det.mediciones.filter(function(r){return r.hoja!==h;});
+    i.excluida=true; i.exclUsuario=true; i.motivo="excluida por ti: no cuenta en la tabla ni en la hoja de costes";
+    refrescarTrasAccion(c);
+  }
+  function accionIncluirHoja(fi,h){
+    var c=cargados[fi]; if(!c) return; var i=c.det.info[h]; if(!i||!i.exclUsuario) return;
+    c.det.mediciones=c.det.mediciones.concat((c.det._stash||{})[h]||[]);
+    if(c.det._stash) delete c.det._stash[h];
+    var orden=Object.keys(c.det.info);   // re-ordena al orden original de hojas y filas
+    c.det.mediciones.sort(function(a,b){ var d=orden.indexOf(a.hoja)-orden.indexOf(b.hoja); return d||(a.fila_origen-b.fila_origen); });
+    i.excluida=false; delete i.exclUsuario; i.motivo="";
+    refrescarTrasAccion(c);
+  }
+  // delegación de clics de los botones de acción del panel «Hojas y avisos»
+  $("avisos").addEventListener("click", function(ev){
+    var b=ev.target.closest?ev.target.closest("[data-act]"):null; if(!b) return;
+    var fi=+b.getAttribute("data-fi"), h=b.getAttribute("data-h"), act=b.getAttribute("data-act");
+    if(act==="cap") accionHojaCapitulo(fi,h);
+    else if(act==="descap") deshacerHojaCapitulo(fi,h);
+    else if(act==="excl") accionExcluirHoja(fi,h);
+    else if(act==="incl") accionIncluirHoja(fi,h);
+  });
+  /* ---- (eliminado) editor de jerarquía por selects: sustituido por las acciones
+     de arriba + el flujo descargar→corregir en Excel→recargar. Código retirado: ----
   function jerKey(fi,h){ return fi+"\u0001"+h; }
   var jerGlobal = {hoja:undefined, lvl:{}};            // regla de jerarquía compartida por TODAS las hojas
   var jerLocal  = {};                                  // jerKey -> {hoja, lvl}: hojas personalizadas (desenganchadas de la global)
@@ -1492,12 +1702,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     recalcular();
     $("jerarquiaWrap").open=false; $("jerInfo").textContent="↺ Restaurado a automático";
   });
+  ---- fin del código retirado ---- */
 
 
   function render(){
     if(!merged){
-      $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide");
-      $("detalleWrap").classList.add("hide"); $("jerarquiaWrap").classList.add("hide");
+      $("archivosWrap").classList.add("hide"); $("toolbar").classList.add("hide"); $("zonaSep").classList.add("hide");
       $("buscadorWrap").classList.add("hide");
       $("preview").innerHTML=""; $("resumen").innerHTML=""; $("kpis").innerHTML=""; $("dash").innerHTML="";
       // aun sin tabla, los archivos que fallaron deben verse (nunca fallar en silencio)
@@ -1507,13 +1717,27 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
         $("avisos").innerHTML = errores.map(avisoError).join("");
       } else { $("avisosWrap").classList.add("hide"); }
       drop.classList.remove("compact");   // sin nada cargado, la dropzone vuelve a su tamaño grande
-      { var _p=$("pitch"); if(_p) _p.classList.remove("hide"); }   // muestra el hero del landing
+      // vuelta a la pantalla de carga: se muestra el split, se ocultan header y main,
+      // y la dropzone regresa a su hueco del formulario. Los archivos que fallaron
+      // se muestran también aquí (#ipError): nunca fallar en silencio.
+      var _is=$("importScreen"), _slot=$("dropSlot"), _hd=document.querySelector("header.hero"), _mn=document.querySelector("main");
+      if(_is) _is.style.display="";
+      if(_hd) _hd.style.display="none";
+      if(_mn) _mn.style.display="none";
+      if(_slot && drop.parentNode!==_slot) _slot.appendChild(drop);
+      { var _ipe=$("ipError"); if(_ipe) _ipe.innerHTML = errores.length ? errores.map(avisoError).join("") : ""; }
       return;
     }
     drop.classList.add("compact");        // ya hay datos: colapsa a barra de una fila
-    { var _ph=$("pitch"); if(_ph) _ph.classList.add("hide"); }   // oculta el hero al cargar datos
+    // con datos cargados: fuera la pantalla de carga; header y main visibles, y la
+    // dropzone se muda a #dropHome como barra de "añadir más"
+    var _is2=$("importScreen"), _home=$("dropHome"), _hd2=document.querySelector("header.hero"), _mn2=document.querySelector("main");
+    if(_is2) _is2.style.display="none";
+    if(_hd2) _hd2.style.display="";
+    if(_mn2) _mn2.style.display="";
+    if(_home && drop.parentNode!==_home) _home.appendChild(drop);
+    { var _ipe2=$("ipError"); if(_ipe2) _ipe2.innerHTML=""; }
     var m=merged.mediciones;
-    renderJerarquia();
 
     // archivos cargados
     $("archivosWrap").classList.remove("hide");
@@ -1527,6 +1751,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
     // toolbar + resumen
     $("toolbar").classList.toggle("hide", m.length===0);
+    $("zonaSep").classList.toggle("hide", m.length===0);
     var usados=merged.archivos.filter(function(a){return !a.excluido;}).length;
     var dupF=merged.archivos.length-usados;
     $("summary").textContent = m.length+" partidas · "+merged.notas.length+" notas · "+
@@ -1554,32 +1779,56 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     animarContadores($("kpis"));
     pintarDashboard(m, merged);
 
-    // avisos (plegable): SOLO lo accionable. Las hojas no-fuente (resúmenes/índices)
-    // se descartan en una 2ª capa y se resumen en una línea, no aturullan.
-    var av="", n=0, noFuente=merged.hojas.filter(function(h){return h.excluida && h.noFuente;}).length;
+    // ---- panel único «Hojas y avisos»: cada hoja con su estado, los avisos en claro
+    //      y, si existe un arreglo verificado, su botón. Orden: a revisar > corregidas
+    //      por la capa 3 > excluidas por el usuario > duplicadas > hojas ok (tabla). ----
+    var fiDe={}; cargados.forEach(function(c,i){ if(!(c.archivo in fiDe)) fiDe[c.archivo]=i; });
+    var av="", n=0, noF=[], okRows="";
     errores.forEach(function(e){ av+=avisoError(e); n++; });   // primero lo que no se pudo cargar
     merged.archivos.forEach(function(a){ if(a.excluido){ av+='<div class="aviso"><b>♻ '+esc(a.nombre)+' — archivo descartado (duplicado)</b><ul><li>'+esc(a.motivo)+'</li></ul></div>'; n++; } });
-    merged.hojas.forEach(function(h){
-      if(h.excluida && !h.noFuente){ av+='<div class="aviso"><b>♻ '+esc(h.archivo)+' › '+esc(h.hoja)+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
-      else if(h.capa3){ av+='<div class="aviso" style="border-color:#bbe2c6;background:var(--ok-soft)"><b style="color:var(--ok)">✓ '+esc(h.archivo)+' › '+esc(h.hoja)+' — corregido automáticamente</b><ul><li>'+esc(h.capa3)+'</li></ul></div>'; n++; }
-      else if(!h.excluida && h.avisos.length){ av+='<div class="aviso"><b>⚠ '+esc(h.archivo)+' › '+esc(h.hoja)+'</b><ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>'; n++; }
+    var hs=merged.hojas.slice();
+    function rango(h){ var inf=(cargados[fiDe[h.archivo]]||{det:{info:{}}}).det.info[h.hoja]||{};
+      if(!h.excluida && h.avisos.length) return 0; if(h.capa3) return 1;
+      if(h.excluida && inf.exclUsuario) return 2; if(h.excluida && !h.noFuente) return 3; return 4; }
+    hs.sort(function(a,b){ return rango(a)-rango(b); });
+    hs.forEach(function(h){
+      var fi=fiDe[h.archivo]; if(fi==null) return;
+      var inf=(cargados[fi].det.info[h.hoja])||{};
+      var nombre=(merged.archivos.length>1? esc(h.archivo)+" › ":"")+esc(h.hoja);
+      if(h.excluida){
+        if(inf.exclUsuario){
+          av+='<div class="aviso h-excl"><div class="av-cab"><b>🚫 '+nombre+' — excluida por ti</b><span class="av-chip">'+h.nMed+' partidas fuera de la tabla</span></div>'+
+              '<div class="av-acciones"><button class="btn-mini" data-act="incl" data-fi="'+fi+'" data-h="'+esc(h.hoja)+'">Volver a incluirla</button></div></div>'; n++;
+        } else if(h.noFuente){ noF.push({nombre:nombre, motivo:h.motivo||""}); }
+        else { av+='<div class="aviso h-excl"><b>♻ '+nombre+' — hoja duplicada</b><ul><li>'+esc(h.motivo)+'</li></ul></div>'; n++; }
+        return;
+      }
+      if(!h.avisos.length){
+        if(h.capa3){ av+='<div class="aviso" style="border-color:#bbe2c6;background:var(--ok-soft)"><b style="color:var(--ok)">✓ '+nombre+' — corregido automáticamente</b><ul><li>'+esc(h.capa3)+'</li></ul></div>'; n++; }
+        else okRows+="<tr><td>"+esc(h.archivo)+"</td><td>"+esc(h.hoja)+"</td><td><span class='e-ok'>ok</span></td><td class='num'>"+h.nMed+"</td></tr>";
+        return;
+      }
+      // hoja a revisar: cabecera con confianza + avisos + acciones disponibles
+      var pct=Math.round((h.confianza==null?1:h.confianza)*100);
+      var chip=(pct<70)?'<span class="av-chip rojo">confianza '+pct+'%</span>':(pct<100)?'<span class="av-chip ambar">confianza '+pct+'%</span>':'';
+      var acc="";
+      var cap=candidatoHojaCapitulo(fi,h.hoja);
+      if(cap) acc+='<button class="btn-mini acc" data-act="cap" data-fi="'+fi+'" data-h="'+esc(h.hoja)+'">Usar «'+esc(cap)+'» como capítulo</button>';
+      if(inf.capNombreHoja) acc+='<button class="btn-mini" data-act="descap" data-fi="'+fi+'" data-h="'+esc(h.hoja)+'">Deshacer capítulo «'+esc(inf.capNombreHoja)+'»</button>';
+      acc+='<button class="btn-mini" data-act="excl" data-fi="'+fi+'" data-h="'+esc(h.hoja)+'" title="La hoja queda fuera de la tabla y de la hoja de costes; puedes volver a incluirla">Excluir esta hoja</button>';
+      av+='<div class="aviso"><div class="av-cab"><b>⚠ '+nombre+'</b>'+chip+'<span class="av-chip">'+h.nMed+' partidas</span></div>'+
+          '<ul>'+h.avisos.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'+
+          (h.capa3?'<div class="av-corr">✓ Además, corrección automática aplicada: '+esc(h.capa3)+'</div>':"")+
+          '<div class="av-acciones">'+acc+'</div></div>';
+      n++;
     });
-    if(noFuente) av+='<div class="aviso" style="border-color:var(--line);background:var(--soft)"><b>🚫 '+noFuente+' hoja'+(noFuente>1?"s":"")+' descartada'+(noFuente>1?"s":"")+'</b> por no contener mediciones (resúmenes, índices, portadas…). Ver «Detalle por hoja».</div>';
+    if(noF.length) av+='<div class="aviso h-excl"><b>🚫 '+noF.length+' hoja'+(noF.length>1?"s":"")+' descartada'+(noF.length>1?"s":"")+'</b> por no contener mediciones:'+
+      '<ul>'+noF.map(function(x){ return '<li><b>'+x.nombre+'</b> — '+esc(x.motivo||"no es hoja de medición")+'</li>'; }).join("")+'</ul></div>';
+    if(okRows) av+='<div style="margin-top:12px"><b style="font-size:12.5px;color:var(--slate)">Hojas sin incidencias</b><table class="dtab" style="margin-top:6px"><thead><tr><th>archivo</th><th>hoja</th><th>estado</th><th>partidas</th></tr></thead><tbody>'+okRows+'</tbody></table></div>';
     $("avisosWrap").classList.toggle("hide", m.length===0 && n===0);
     $("avisosWrap").open = n>0;
-    $("avisosSum").textContent = n ? ("Avisos · "+n+" a revisar") : "Avisos · todo correcto ✓";
-    $("avisos").innerHTML = (n||noFuente) ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
-
-    // detalle por hoja (plegable): archivo · hoja · estado · partidas
-    $("detalleWrap").classList.toggle("hide", merged.hojas.length===0);
-    $("detalleSum").textContent = "Detalle por hoja · "+merged.hojas.length;
-    var rows=merged.hojas.map(function(h){
-      var estado = (h.excluida && h.noFuente) ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">no-fuente</span>'
-                 : h.excluida ? '<span class="e-excl" title="'+esc(h.motivo||"")+'">duplicada</span>'
-                 : (h.avisos.length) ? '<span class="e-warn">revisar</span>' : '<span class="e-ok">ok</span>';
-      return "<tr><td>"+esc(h.archivo)+"</td><td>"+esc(h.hoja)+"</td><td>"+estado+"</td><td class='num'>"+h.nMed+"</td></tr>";
-    }).join("");
-    $("detalle").innerHTML='<table class="dtab"><thead><tr><th>archivo</th><th>hoja</th><th>estado</th><th>partidas</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    $("avisosSum").textContent = n ? ("Hojas y avisos · "+n+" a revisar") : "Hojas y avisos · todo correcto ✓";
+    $("avisos").innerHTML = (n||noF.length||okRows) ? av : '<div class="ok">✓ Detección limpia y sin duplicados.</div>';
 
     // vista previa (filtrable con el buscador)
     $("buscadorWrap").classList.toggle("hide", m.length===0);
@@ -1660,7 +1909,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     if(merged.esMQT===false){   // ningún archivo cargado parece un MQT: avisar y NO fingir fiabilidad
       $("dash").innerHTML='<div class="dcard nomqt"><span class="ic">⚠️</span><div class="dc-text">'+
         '<h3>Comprobación del archivo</h3><div class="d-sub"><b>Esto no parece un MQT de mediciones.</b><br>'+
-        'No se han encontrado columnas de medición habituales (unidad + cantidad). Revisa que sea un Mapa de Quantidades. '+
+        'No se han encontrado columnas de medición habituales (unidad + cantidad). Revisa que sea un archivo MQT de mediciones. '+
         'Los datos se muestran abajo, pero no se evalúa su fiabilidad.</div></div></div>';
       return;
     }
@@ -1670,25 +1919,26 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     // ve la hoja peor, para no fingir fiabilidad.
     var aRev=fuente.filter(function(h){ return h.confianza!=null && h.confianza<1; }).length;
     var peor=1; fuente.forEach(function(h){ if((h.nMed||0)>0){ var c=(h.confianza==null?1:h.confianza); if(c<peor) peor=c; } });
-    var pct=Math.round(peor*100), ok=(aRev===0);
+    var pct=Math.round(peor*100), ok=(aRev===0), grave=(peor<0.7);   // <70% en la peor hoja = veredicto ROJO: no usar sin revisar
     var pt=merged.passthrough;
     var sub = ok ? ((pt?'<b>Fichero ya normalizado</b>':'<b>Extracción fiable</b>')+'<br>'+m.length.toLocaleString("pt-PT")+' partidas · '+fuente.length+' hoja'+(fuente.length!==1?"s":"")+'')
-                 : ('<b>'+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
+             : grave ? ('<b style="color:var(--err)">Extracción dudosa · no pegar en costes sin revisar</b><br>'+pct+'% en la hoja menos fiable · '+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>')
+             : ('<b>Revisa antes de usar: '+pct+'% en la hoja menos fiable</b><br>'+aRev+' hoja'+(aRev>1?"s":"")+' a revisar de '+fuente.length+' · <span style="color:var(--accent);font-weight:700">ver avisos ›</span>');
     var titulo = pt ? 'Mediciones normalizadas' : 'Confianza de la extracción';
-    var ring='<div class="dcard'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok)+'</div><div><h3>'+titulo+'</h3><div class="d-sub">'+sub+'</div></div></div>';
+    var ring='<div class="dcard d-conf'+(ok?'':' clk-avisos')+'"'+(ok?'':' title="Ver hojas a revisar"')+'><div class="dc-chart">'+anilloSVG(pct,ok,grave)+'</div><div><h3>'+titulo+'</h3><div class="d-sub">'+sub+'</div></div></div>';
 
+    // capítulos: TODOS, sin truncar (con scroll si hace falta). Es el chequeo visual clave
+    // de si la extracción tiene sentido: por eso ocupa 3/5 de la fila frente a 2/5 del anillo.
     var porCap={}; m.forEach(function(r){ var k=(r.capitulo&&String(r.capitulo).trim())||"(sin capítulo)"; porCap[k]=(porCap[k]||0)+1; });
     var caps=Object.keys(porCap).map(function(k){return [k,porCap[k]];}).sort(function(a,b){return b[1]-a[1];});
-    var top=caps.slice(0,9), resto=caps.slice(9);
-    if(resto.length){ top.push(["+ "+resto.length+" capítulos más", resto.reduce(function(a,x){return a+x[1];},0)]); }
-    var donut='<div class="dcard"><div class="dc-text"><h3>Partidas por capítulo</h3><div class="donut-leg">'+
-      top.map(function(x,i){return '<span class="li"><span class="sw" style="background:'+PALETA[i%PALETA.length]+'"></span><span class="t" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="v">'+x[1]+'</span></span>';}).join("")+'</div></div></div>';
+    var donut='<div class="dcard d-caps"><div class="dc-text"><h3>Partidas por capítulo · '+caps.length+'</h3><div class="donut-leg">'+
+      caps.map(function(x,i){return '<span class="li"><span class="sw" style="background:'+PALETA[i%PALETA.length]+'"></span><span class="t" title="'+esc(x[0])+'">'+esc(x[0])+'</span><span class="v">'+x[1]+'</span></span>';}).join("")+'</div></div></div>';
     $("dash").innerHTML = ring+donut;
     var rc=$("dash").querySelector("circle[data-off]");   // dispara la animación del trazo
     if(rc) requestAnimationFrame(function(){ rc.setAttribute("stroke-dashoffset", rc.getAttribute("data-off")); });
   }
-  function anilloSVG(pct, ok){
-    var R=48, C=2*Math.PI*R, off=C*(1-pct/100), col=ok?"#15803D":"#B45309";
+  function anilloSVG(pct, ok, grave){
+    var R=48, C=2*Math.PI*R, off=C*(1-pct/100), col=ok?"#15803D":(grave?"#B91C1C":"#B45309");   // verde / ámbar / rojo
     return '<svg width="128" height="128" viewBox="0 0 128 128" style="flex:none">'+
       '<circle cx="64" cy="64" r="'+R+'" fill="none" stroke="#ECEEF1" stroke-width="12"/>'+
       '<circle cx="64" cy="64" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+C.toFixed(1)+'" transform="rotate(-90 64 64)" style="transition:stroke-dashoffset 1s ease" data-off="'+off.toFixed(1)+'"/>'+

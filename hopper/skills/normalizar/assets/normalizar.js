@@ -121,13 +121,19 @@ function hojaFormulada(cf){
 }
 
 // --- CLI ---
-var args=process.argv.slice(2), outDir=".", files=[];
-for(var i=0;i<args.length;i++){ if(args[i]==="--out"){ outDir=args[++i]; } else files.push(args[i]); }
-if(!files.length){ console.error("Uso: node normalizar.js <archivo.xlsx> [...] [--out <carpeta>]"); process.exit(1); }
+var args=process.argv.slice(2), outDir=".", files=[], OV={};
+for(var i=0;i<args.length;i++){
+  if(args[i]==="--out"){ outDir=args[++i]; }
+  else if(args[i]==="--overrides"){ OV=JSON.parse(fs.readFileSync(args[++i],"utf8")); }
+  else files.push(args[i]);
+}
+if(!files.length){ console.error("Uso: node normalizar.js <archivo.xlsx> [...] [--out <carpeta>] [--overrides <ov.json>]"); process.exit(1); }
+if(Object.keys(OV).length) console.log("overrides activos para hojas: "+Object.keys(OV).join(", "));
+try{ fs.mkdirSync(outDir,{recursive:true}); }catch(e){}
 
 var cargados=files.map(function(f){
   var wb=XLSX.read(fs.readFileSync(f),{cellStyles:false});
-  return {archivo:path.basename(f), det:core.normalizar(wb, path.basename(f), XLSX, {})};
+  return {archivo:path.basename(f), det:core.normalizar(wb, path.basename(f), XLSX, OV)};
 });
 var merged=core.acumular(cargados);
 
